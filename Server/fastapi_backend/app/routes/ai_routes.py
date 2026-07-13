@@ -90,3 +90,16 @@ async def meal_planning(request: MealPlanRequest):
     except Exception as e:
         print(f"Error in meal_planning: {e}")
         return {"status": "error", "message": str(e)}
+
+@router.post("/generate-pantry-recipes")
+async def generate_pantry_recipes(request: RecipeGenerationRequest):
+    try:
+        result = await GrokService().RecipieListGeneration(request)
+        if result is None:
+            return {"status": "error", "message": "Failed to generate recipes from pantry ingredients"}
+        
+        return {"status": "success", "recipes": result.get("recipes", [])}
+
+    except Exception as e:
+        print(f"Error in generate_pantry_recipes: {e}")
+        return {"status": "error", "message": str(e)}

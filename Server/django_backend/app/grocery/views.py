@@ -12,6 +12,7 @@ class GroceryItemListCreateView(APIView):
     List all grocery items for the authenticated user, or create a new grocery item.
     """
     permission_classes = [permissions.IsAuthenticated]
+    throttle_scope = 'grocery'
 
     def get(self, request):
         # Enforce that users can only see their own grocery items
@@ -34,6 +35,7 @@ class GroceryItemDetailView(APIView):
     Permission is restricted to the owner of the grocery item.
     """
     permission_classes = [permissions.IsAuthenticated, IsAuthorOrReadOnly]
+    throttle_scope = 'grocery'
 
     def get_object(self, pk):
         obj = get_object_or_404(GroceryItem, pk=pk)

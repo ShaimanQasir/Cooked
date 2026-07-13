@@ -8,6 +8,7 @@ from app.recipe.permissions import IsAuthorOrReadOnly
 
 class PantryItemListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    throttle_scope = 'pantry'
 
     def get(self, request):
         items = PantryItem.objects.filter(user=request.user)
@@ -23,6 +24,7 @@ class PantryItemListCreateView(APIView):
 
 class PantryItemDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsAuthorOrReadOnly]
+    throttle_scope = 'pantry'
 
     def get_object(self, pk):
         obj = get_object_or_404(PantryItem, pk=pk)

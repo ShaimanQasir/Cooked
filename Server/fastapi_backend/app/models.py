@@ -13,7 +13,7 @@ class ImageScanRequest(BaseModel):
 
 class RecipeGenerationRequest(BaseModel):
     ingredients: List[str]
-    user_preferences: Optional[User_Preferences] = None
+    user_preferences: Optional[UserPreferences] = None
 
 class IngredientSubstitutionRequest(BaseModel):
     ingredient: str
@@ -86,3 +86,6 @@ class MealEntry(BaseModel):
 
 class MealPlanResponse(BaseModel):
     plan: Dict[str, MealEntry] = Field(description="Meal plan indexed by Day (e.g., Day 1, Day 2)")
+
+class MultipleRecipesResponse(BaseModel):
+    recipes: List[RecipeResponse] = Field(description="List of multiple generated recipes matching user preferences")

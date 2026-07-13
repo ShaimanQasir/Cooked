@@ -143,7 +143,23 @@ STATIC_URL = 'static/'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-    )
+    ),
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+        'rest_framework.throttling.ScopedRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '30/minute',
+        'user': '100/minute',
+        'auth': '5/minute',
+        'ai_expensive': '5/minute',
+        'ai_standard': '20/minute',
+        'pantry': '100/minute',
+        'recipe': '100/minute',
+        'cookbook': '100/minute',
+        'grocery': '100/minute',
+    }
 }
 
 SIMPLE_JWT = {

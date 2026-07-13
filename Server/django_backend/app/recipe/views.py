@@ -11,6 +11,7 @@ from .permissions import IsAuthorOrReadOnly
 # --- RECIPE VIEWS ---
 class RecipeListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    throttle_scope = 'recipe'
     def get(self, request):
         recipes = Recipe.objects.all()
         serializer = RecipeSerializer(recipes, many=True)
@@ -25,6 +26,7 @@ class RecipeListCreateView(APIView):
 
 class RecipeDetailView(APIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsAuthorOrReadOnly]
+    throttle_scope = 'recipe'
     def get_object(self, pk):
         obj = get_object_or_404(Recipe, pk=pk)
         self.check_object_permissions(self.request, obj)
@@ -52,6 +54,7 @@ class RecipeDetailView(APIView):
 # --- SAVED RECIPE VIEWS ---
 class SavedRecipeListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    throttle_scope = 'recipe'
     def get(self, request):
         # Filter: Only show the logged-in user's saved recipes
         saves = SavedRecipe.objects.filter(user=request.user)
@@ -70,6 +73,7 @@ class SavedRecipeListCreateView(APIView):
 
 class SavedRecipeDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsAuthorOrReadOnly]
+    throttle_scope = 'recipe'
     def get_object(self, pk):
         obj = get_object_or_404(SavedRecipe, pk=pk)
         self.check_object_permissions(self.request, obj)
@@ -84,6 +88,7 @@ class SavedRecipeDetailView(APIView):
 # --- RATING VIEWS ---
 class RatingListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    throttle_scope = 'recipe'
     def get(self, request):
         ratings = RecipeRating.objects.all()
         serializer = RecipeRatingSerializer(ratings, many=True)
@@ -103,6 +108,7 @@ class RatingListCreateView(APIView):
 
 class RatingDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsAuthorOrReadOnly]
+    throttle_scope = 'recipe'
     def get_object(self, pk):
         obj = get_object_or_404(RecipeRating, pk=pk)
         self.check_object_permissions(self.request, obj)

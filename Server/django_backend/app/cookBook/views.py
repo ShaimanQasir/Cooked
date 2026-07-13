@@ -13,6 +13,7 @@ class CookBookListCreateView(APIView):
     The author is automatically set to the authenticated user and must be verified.
     """
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    throttle_scope = 'cookbook'
 
     def get(self, request):
         cookbooks = CookBook.objects.all()
@@ -36,6 +37,7 @@ class CookBookDetailView(APIView):
     Only the author can update or delete.
     """
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsAuthorOrReadOnly]
+    throttle_scope = 'cookbook'
 
     def get_object(self, pk):
         obj = get_object_or_404(CookBook, pk=pk)

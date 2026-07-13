@@ -23,6 +23,7 @@ from .utils import send_otp_email
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = 'auth'
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data, context={"request": request})
@@ -38,6 +39,7 @@ class RegisterView(APIView):
 
 class ResendOTPView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = 'auth'
 
     def post(self, request):
         serializer = ResendOTPSerializer(data=request.data)
@@ -54,6 +56,7 @@ class ResendOTPView(APIView):
 
 class OTPVerifyView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = 'auth'
 
     def post(self, request):
         serializer = OTPVerifySerializer(data=request.data)
@@ -63,6 +66,7 @@ class OTPVerifyView(APIView):
 
 class OTPGenerateView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = 'auth'
 
     def post(self, request):
         serializer = OTPGenerateSerializer(data=request.data)
@@ -78,6 +82,7 @@ class OTPGenerateView(APIView):
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = 'auth'
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -156,6 +161,7 @@ class DeleteUserView(APIView):
 
 class PasswordResetRequestView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = 'auth'
 
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)
@@ -172,6 +178,7 @@ class PasswordResetRequestView(APIView):
 
 class PasswordResetOTPVerifyView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = 'auth'
 
     def post(self, request):
         serializer = PasswordResetOTPVerifySerializer(data=request.data)
@@ -182,6 +189,7 @@ class PasswordResetOTPVerifyView(APIView):
 
 class PasswordResetConfirmView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = 'auth'
 
     def post(self, request):
         serializer = PasswordResetConfirmSerializer(data=request.data)

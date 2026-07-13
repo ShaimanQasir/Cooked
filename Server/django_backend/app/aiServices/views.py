@@ -6,9 +6,11 @@ from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import status
 from .utils import get_ai_user_preferences
+from app.pantry.models import PantryItem
 
 class AIScanImageView(APIView):
     parser_classes = (MultiPartParser, FormParser)
+    throttle_scope = 'ai_expensive'
 
     def post(self, request):
         if 'image' not in request.FILES:
@@ -47,6 +49,7 @@ class AIScanImageView(APIView):
             }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 class AIGenerateRecipeView(APIView):
+    throttle_scope = 'ai_expensive'
     def post(self, request):
         user_preferences = get_ai_user_preferences(request.user)
         fastapi_url = f"{settings.FASTAPI_SERVICE_URL}/ai/generate-recipe"
@@ -70,6 +73,7 @@ class AIGenerateRecipeView(APIView):
             }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 class AISubstituteIngredientView(APIView):
+    throttle_scope = 'ai_standard'
     def post(self, request):
         user_preferences = get_ai_user_preferences(request.user)
         fastapi_url = f"{settings.FASTAPI_SERVICE_URL}/ai/substitute-ingredient"
@@ -95,6 +99,7 @@ class AISubstituteIngredientView(APIView):
 
 
 class AIGroceryListView(APIView):
+    throttle_scope = 'ai_standard'
     def post(self, request):
         user_preferences = get_ai_user_preferences(request.user)
         fastapi_url = f"{settings.FASTAPI_SERVICE_URL}/ai/create-grocery-list"
@@ -119,6 +124,7 @@ class AIGroceryListView(APIView):
 
 
 class AINutritionalAnalysisView(APIView):
+    throttle_scope = 'ai_standard'
     def post(self, request):
         user_preferences = get_ai_user_preferences(request.user)
         fastapi_url = f"{settings.FASTAPI_SERVICE_URL}/ai/nutritional-analysis"
@@ -143,6 +149,7 @@ class AINutritionalAnalysisView(APIView):
 
 
 class AIGenerateMealPlanView(APIView):
+    throttle_scope = 'ai_expensive'
     def post(self, request):
         user_preferences = get_ai_user_preferences(request.user)
         fastapi_url = f"{settings.FASTAPI_SERVICE_URL}/ai/meal-planning"
@@ -152,6 +159,45 @@ class AIGenerateMealPlanView(APIView):
         }
         payload = {
             "days": request.data.get("days", 7),
+            "user_preferences": user_preferences
+        }
+
+        try:
+            response = requests.post(fastapi_url, json=payload, headers=headers, timeout=30)
+            response.raise_for_status()
+            return Response(response.json(), status=status.HTTP_200_OK)
+        except requests.exceptions.RequestException as e:
+            return Response({
+                "error": "Failed to connect to AI Service",
+                "details": str(e)
+            }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+class AIGeneratePantryRecipesView(APIView):
+    throttle_scope = 'ai_expensive'
+
+    def post(self, request):
+        # 1. Fetch pantry items for the current user
+        pantry_items = PantryItem.objects.filter(user=request.user).select_related('ingredient')
+        if not pantry_items.exists():
+            return Response(
+                {"error": "No kitchen ingredients found in your pantry. Scan some or add them manually to generate recipes."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        ingredients = [item.ingredient.name for item in pantry_items]
+
+        # 2. Get User Preferences
+        user_preferences = get_ai_user_preferences(request.user)
+
+        # 3. Call FastAPI to generate multiple recipes
+        fastapi_url = f"{settings.FASTAPI_SERVICE_URL}/ai/generate-pantry-recipes"
+        headers = {
+            "X-Internal-Secret": settings.INTERNAL_AUTH_SECRET,
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "ingredients": ingredients,
             "user_preferences": user_preferences
         }
 

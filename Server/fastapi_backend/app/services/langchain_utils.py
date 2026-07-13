@@ -61,3 +61,8 @@ MEAL_PLAN_PROMPT = ChatPromptTemplate.from_messages([
     ("system", "You are a professional meal planner. Create a balanced meal plan for the requested duration. Output strictly in the requested JSON structure."),
     ("user", "Days: {days}\n\nUser Context:\n{user_context}")
 ])
+
+MULTIPLE_RECIPES_GENERATION_PROMPT = ChatPromptTemplate.from_messages([
+    ("system", "You are a world-class chef. Create exactly 3 distinct, creative and delicious recipes based on the provided ingredients and user preferences. Output strictly in the requested JSON structure matching MultipleRecipesResponse."),
+    ("user", "Ingredients: {ingredients}\n\nUser Context:\n{user_context}")
+])
