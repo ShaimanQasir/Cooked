@@ -52,12 +52,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         fields = [
-            'id', 'user', 'onboarding_step', 'is_onboarding_complete','language', 'primary_region', 'measurement_system',
-            'referral_source', 'dietary_preferences', 'allergies', 
-            'disliked_ingredients', 'cooking_frequency', 'skill_level', 
-            'preferred_cooking_time', 'household_size', 'preferred_cuisines', 
+            'id', 'user', 'onboarding_step', 'is_onboarding_complete','language', 'primary_region', 'country', 'measurement_system',
+            'referral_source', 'dietary_preferences', 'allergies',
+            'disliked_ingredients', 'cooking_frequency', 'skill_level',
+            'preferred_cooking_time', 'household_size', 'preferred_cuisines',
             'kitchen_equipment', 'meal_planning_preference', 'notifications_enabled',
-            'health_goals', 'activity_level', 'weight_goal', 'current_weight', 
+            'health_goals', 'activity_level', 'weight_goal', 'current_weight',
             'target_weight', 'current_height', 'date_of_birth', 'gender',
             'progress_percentage', 'created_at', 'updated_at'
         ]
