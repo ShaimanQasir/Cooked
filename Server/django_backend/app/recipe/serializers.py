@@ -21,6 +21,12 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
 
 # --- Recipe Serializer ---
 class RecipeSerializer(serializers.ModelSerializer):
+    likes_count = serializers.SerializerMethodField()
+    dislikes_count = serializers.SerializerMethodField()
+    is_liked = serializers.SerializerMethodField()
+    is_disliked = serializers.SerializerMethodField()
+    is_saved = serializers.SerializerMethodField()
+
     # Ingredients now uses a nested serializer to include quantity/unit
     ingredients = RecipeIngredientSerializer(source='ingredient_details', many=True, required=False)
     
@@ -34,6 +40,30 @@ class RecipeSerializer(serializers.ModelSerializer):
         model = Recipe
         fields = '__all__'
         read_only_fields = ('id', 'author', 'created_at', 'updated_at')
+
+    def get_likes_count(self, obj):
+        return obj.likes.count()
+
+    def get_dislikes_count(self, obj):
+        return obj.dislikes.count()
+
+    def get_is_liked(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.likes.filter(id=request.user.id).exists()
+        return False
+
+    def get_is_disliked(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.dislikes.filter(id=request.user.id).exists()
+        return False
+
+    def get_is_saved(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return SavedRecipe.objects.filter(user=request.user, recipe=obj).exists()
+        return False
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
