@@ -158,3 +158,22 @@ Thumbs.db
 # IDEs
 .vscode/
 .idea/
+
+# Node modules & package manager logs
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Expo & React Native
+.expo/
+.expo-shared/
+web-build/
+*.metro.log
+
+# Environment variables & local secrets
+.env*.local
+.env
+
