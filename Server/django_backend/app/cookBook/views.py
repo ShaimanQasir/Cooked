@@ -16,9 +16,18 @@ class CookBookListCreateView(APIView):
     throttle_scope = 'cookbook'
 
     def get(self, request):
-        cookbooks = CookBook.objects.all()
+        if request.user.is_authenticated:
+            cookbooks = CookBook.objects.filter(author=request.user).order_by('-created_at')
+        else:
+            cookbooks = CookBook.objects.none()
         serializer = CookBookReadSerializer(cookbooks, many=True)
-        return Response(serializer.data)
+        data = serializer.data
+        return Response({
+            'count': len(data),
+            'next': None,
+            'previous': None,
+            'results': data,
+        })
 
     def post(self, request):
         # Pass request context so write serializer can access request.user and its validation
