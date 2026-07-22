@@ -45,8 +45,11 @@ class Recipe(models.Model):
         on_delete=models.CASCADE, 
         related_name='recipes'
     )
+    likes = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='liked_recipes', blank=True)
+    dislikes = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='disliked_recipes', blank=True)
     
     is_public = models.BooleanField(default=True)
+    is_archived = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
