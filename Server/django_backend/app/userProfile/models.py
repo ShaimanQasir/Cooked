@@ -119,6 +119,7 @@ class UserProfile(models.Model):
     # Step 2: Language & Region
     language = models.CharField(max_length=50, default='English')
     primary_region = models.CharField(max_length=100, blank=True)
+    country = models.CharField(max_length=100, blank=True)
     measurement_system = models.CharField(
         max_length=10, 
         choices=MeasurementSystem.choices, 
