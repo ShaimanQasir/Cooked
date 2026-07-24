@@ -4,11 +4,13 @@ import {
   View, 
   Text, 
   TouchableOpacity, 
-  ScrollView 
+  ScrollView,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useUserStore } from '../../store/useUserStore';
+import { useToastStore } from '../../store/useToastStore';
 import Skeleton from '../../components/Skeleton';
 import Colors from '../../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
@@ -46,11 +48,26 @@ const MenuItem: React.FC<MenuItemProps> = ({ icon, title, onPress, isDestructive
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { profile } = useUserStore();
+  const { profile, logout } = useUserStore();
+  const { show } = useToastStore();
 
   const handleLogoutPress = () => {
-    // Open logout confirmation dialog (Page 35 bottom sheet)
-    router.push('/auth/logout-modal');
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out of your account?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            show('Signed out successfully', 'success');
+            router.replace('/auth/login');
+          },
+        },
+      ]
+    );
   };
 
   return (
