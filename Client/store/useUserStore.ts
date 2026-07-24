@@ -187,7 +187,7 @@ export const useUserStore = create<UserStore>()(
           await authService.logout();
         } catch (_) {}
         clearAuthTokens();
-        set({ isAuthenticated: false, authChecked: true, profile: initialProfile, isOnboarded: false, onboardingStep: 1 });
+        set({ isAuthenticated: false, authChecked: true, profile: initialProfile, isOnboarded: false, onboardingStep: 1, currentUserId: null });
       },
 
       verifyOtp: async (email, otp) => {
