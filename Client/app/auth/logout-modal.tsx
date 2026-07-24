@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useUserStore } from '../../store/useUserStore';
+import { useToastStore } from '../../store/useToastStore';
 import Button from '../../components/Button';
 import Colors from '../../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,12 +17,14 @@ import { Ionicons } from '@expo/vector-icons';
 export default function LogoutModal() {
   const router = useRouter();
   const { logout } = useUserStore();
+  const { show } = useToastStore();
   const [loading, setLoading] = useState(false);
 
   const handleLogout = async () => {
     setLoading(true);
     try {
       await logout();
+      show('Signed out successfully', 'success');
     } catch (_) {}
     setLoading(false);
     router.replace('/auth/login');
