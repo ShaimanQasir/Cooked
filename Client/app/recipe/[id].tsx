@@ -8,6 +8,7 @@ import {
   Image,
   ActivityIndicator,
   Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -19,6 +20,7 @@ import RecipeActionModal from '../../components/RecipeActionModal';
 import Skeleton from '../../components/Skeleton';
 import Colors from '../../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
+import { recipeService } from '../../services/recipe.service';
 
 export default function RecipeDetailsScreen() {
   const router = useRouter();
@@ -28,19 +30,23 @@ export default function RecipeDetailsScreen() {
   const { fetchRecipeById, savedRecipes, toggleSaveRecipe, likeRecipe, dislikeRecipe, deleteRecipe, archiveRecipe, addToRecentlyViewed } = useRecipeStore();
   const { currentUserId } = useUserStore();
   const { show } = useToastStore();
-  const { addRecipeIngredients } = useGroceryStore();
 
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'Steps' | 'Ingredients'>('Ingredients');
   const [actionModalVisible, setActionModalVisible] = useState(false);
+  const [addedGrocery, setAddedGrocery] = useState(false);
+
+  const isFavorite = recipe ? savedRecipes.some((s) => s.recipeId === recipe.id) : false;
 
   useEffect(() => {
     if (!id) return;
     setLoading(true);
     fetchRecipeById(id).then((r) => {
-      setRecipe(r);
-      if (r) addToRecentlyViewed(r.id);
+      if (r) {
+        setRecipe(r);
+        addToRecentlyViewed(r.id);
+      }
       setLoading(false);
     });
   }, [id]);
@@ -51,16 +57,34 @@ export default function RecipeDetailsScreen() {
 
   const handleLike = async () => {
     if (!recipe) return;
-    await likeRecipe(recipe.id);
-    const updated = await fetchRecipeById(recipe.id);
-    if (updated) setRecipe(updated);
+    const res = await recipeService.likeRecipe(recipe.id);
+    setRecipe((prev) =>
+      prev
+        ? {
+            ...prev,
+            isLiked: res.liked,
+            isDisliked: res.is_disliked !== undefined ? res.is_disliked : (res.liked ? false : prev.isDisliked),
+            likesCount: res.likes_count,
+            dislikesCount: res.dislikes_count,
+          }
+        : null
+    );
   };
 
   const handleDislike = async () => {
     if (!recipe) return;
-    await dislikeRecipe(recipe.id);
-    const updated = await fetchRecipeById(recipe.id);
-    if (updated) setRecipe(updated);
+    const res = await recipeService.dislikeRecipe(recipe.id);
+    setRecipe((prev) =>
+      prev
+        ? {
+            ...prev,
+            isDisliked: res.disliked,
+            isLiked: res.is_liked !== undefined ? res.is_liked : (res.disliked ? false : prev.isLiked),
+            likesCount: res.likes_count,
+            dislikesCount: res.dislikes_count,
+          }
+        : null
+    );
   };
 
   const handleArchive = async () => {
@@ -97,12 +121,18 @@ export default function RecipeDetailsScreen() {
     router.push({ pathname: '/recipe/edit', params: { id: String(recipe?.id) } });
   };
 
-  const isSaved = recipe ? savedRecipes.some((s) => s.recipeId === recipe.id) : false;
-
   const handleAddGrocery = () => {
     if (!recipe) return;
-    addRecipeIngredients(recipe.title, recipe.ingredients.map((i) => ({ name: i.name, amount: `${i.quantity} ${i.unit}` })));
-    router.push('/(tabs)/grocery');
+    const store = useGroceryStore.getState();
+    let count = 0;
+    (recipe.ingredients || []).forEach((ing) => {
+      if (ing.name) {
+        store.addItem(ing.name, ing.quantity ? `${ing.quantity} ${ing.unit}`.trim() : '');
+        count++;
+      }
+    });
+    setAddedGrocery(true);
+    show(`Added ${count} ingredients to Grocery List!`, 'success');
   };
 
   const handleAddCookbook = () => {
@@ -204,11 +234,11 @@ export default function RecipeDetailsScreen() {
           <Text style={styles.recipeTitle}>{recipe.title}</Text>
           {/* Allow favoriting public recipes (including user's own public recipes) */}
           {isPublicRecipe && (
-            <TouchableOpacity onPress={() => toggleSaveRecipe(recipe.id)} style={styles.favoriteBtn}>
+            <TouchableOpacity onPress={() => toggleSaveRecipe(recipe.id)} style={styles.favoriteBtn} activeOpacity={0.7}>
               <Ionicons
-                name={isSaved ? 'heart' : 'heart-outline'}
+                name={isFavorite ? 'heart' : 'heart-outline'}
                 size={26}
-                color={isSaved ? Colors.primary : Colors.textMuted}
+                color={isFavorite ? Colors.primary : Colors.textMuted}
               />
             </TouchableOpacity>
           )}
@@ -217,6 +247,56 @@ export default function RecipeDetailsScreen() {
         {recipe.cuisine && (
           <Text style={styles.cuisineText}>{recipe.cuisine} Cuisine</Text>
         )}
+
+        {/* Video Tutorial Section */}
+        {recipe.videoUrl ? (
+          <View style={styles.videoSection}>
+            <View style={styles.videoHeaderRow}>
+              <View style={styles.videoTitleBox}>
+                <Ionicons name="videocam" size={20} color={Colors.primary} />
+                <Text style={styles.videoSectionTitle}>Recipe Video Tutorial</Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.videoLikeBtn, recipe.isLiked && styles.videoLikeBtnActive]}
+                onPress={handleLike}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name={recipe.isLiked ? 'thumbs-up' : 'thumbs-up-outline'}
+                  size={16}
+                  color={recipe.isLiked ? Colors.primary : Colors.textMuted}
+                />
+                <Text style={[styles.videoLikeText, recipe.isLiked && styles.videoLikeTextActive]}>
+                  {recipe.likesCount || 0} Likes
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={styles.videoThumbnailBox}
+              onPress={() => {
+                if (recipe.videoUrl) {
+                  Linking.openURL(recipe.videoUrl).catch(() => {
+                    show('Could not open video URL', 'error');
+                  });
+                }
+              }}
+              activeOpacity={0.9}
+            >
+              {recipe.image ? (
+                <Image source={{ uri: recipe.image }} style={styles.videoThumbnail} />
+              ) : (
+                <View style={styles.videoPlaceholder} />
+              )}
+              <View style={styles.videoOverlay}>
+                <View style={styles.playButtonCircle}>
+                  <Ionicons name="play" size={32} color={Colors.white} style={{ marginLeft: 4 }} />
+                </View>
+                <Text style={styles.playText}>Tap to Watch Recipe Video</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        ) : null}
 
         {/* Like / Dislike Row for Public recipes (Centered) */}
         {isPublicRecipe && (
@@ -699,6 +779,92 @@ const styles = StyleSheet.create({
   },
   likeDislikeTextActive: {
     color: Colors.primary,
+  },
+  videoSection: {
+    marginHorizontal: 24,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  videoHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  videoTitleBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  videoSectionTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  videoLikeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.white,
+  },
+  videoLikeBtnActive: {
+    backgroundColor: '#FFF1F0',
+    borderColor: Colors.primary,
+  },
+  videoLikeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.textMuted,
+  },
+  videoLikeTextActive: {
+    color: Colors.primary,
+  },
+  videoThumbnailBox: {
+    height: 170,
+    borderRadius: 20,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#1C1C1A',
+  },
+  videoThumbnail: {
+    width: '100%',
+    height: '100%',
+    opacity: 0.7,
+  },
+  videoPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#2A2A28',
+  },
+  videoOverlay: {
+    ...StyleSheet.absoluteFill,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  playButtonCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  playText: {
+    color: Colors.white,
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 10,
   },
   ownerActionsRow: {
     flexDirection: 'row',
