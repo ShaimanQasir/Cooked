@@ -8,6 +8,7 @@ export interface Recipe {
   title: string;
   description: string;
   image: string | null;
+  videoUrl?: string | null;
   difficulty: string;
   prepTime: number;
   cookTime: number;
@@ -52,6 +53,7 @@ function mapBackendRecipe(r: BackendRecipe): Recipe {
     title: r.title,
     description: r.description || '',
     image: r.image,
+    videoUrl: r.video_url || null,
     difficulty: r.difficulty,
     prepTime: r.prep_time,
     cookTime: r.cook_time,
@@ -190,22 +192,29 @@ export const useRecipeStore = create<RecipeStore>()(
         if (existing) {
           set({ savedRecipes: state.savedRecipes.filter((s) => s.recipeId !== recipeId) });
           try {
-            await recipeService.unsaveRecipe(existing.id);
+            await recipeService.unsaveRecipe(recipeId);
           } catch {
-            set({ savedRecipes: state.savedRecipes });
+            // Unsave fallback try POST toggle
+            await recipeService.saveRecipe(recipeId).catch(() => {});
           }
         } else {
           const temp: SavedRecipe = { id: -Date.now(), recipeId, createdAt: new Date().toISOString() };
           set({ savedRecipes: [...state.savedRecipes, temp] });
           try {
             const res = await recipeService.saveRecipe(recipeId);
-            set((s) => ({
-              savedRecipes: s.savedRecipes.map((r) =>
-                r.id === temp.id ? { id: res.id, recipeId: res.recipe, createdAt: res.created_at } : r
-              ),
-            }));
+            if (res && res.saved === false) {
+              set((s) => ({
+                savedRecipes: s.savedRecipes.filter((r) => r.recipeId !== recipeId && r.id !== temp.id),
+              }));
+            } else if (res && res.id) {
+              set((s) => ({
+                savedRecipes: s.savedRecipes.map((r) =>
+                  r.id === temp.id ? { id: res.id, recipeId: res.recipe || recipeId, createdAt: res.created_at || new Date().toISOString() } : r
+                ),
+              }));
+            }
           } catch {
-            set({ savedRecipes: state.savedRecipes });
+            set({ savedRecipes: state.savedRecipes.filter((s) => s.recipeId !== recipeId) });
           }
         }
       },
@@ -305,6 +314,21 @@ export const useRecipeStore = create<RecipeStore>()(
       clearScannedIngredients: () => set({ scannedIngredients: [] }),
 
       likeRecipe: async (recipeId) => {
+        // Optimistic store update
+        set((s) => ({
+          recipes: s.recipes.map((r) => {
+            if (r.id !== recipeId) return r;
+            const willLike = !r.isLiked;
+            return {
+              ...r,
+              isLiked: willLike,
+              isDisliked: false,
+              likesCount: willLike ? (r.likesCount || 0) + 1 : Math.max(0, (r.likesCount || 0) - 1),
+              dislikesCount: r.isDisliked ? Math.max(0, (r.dislikesCount || 0) - 1) : (r.dislikesCount || 0),
+            };
+          }),
+        }));
+
         try {
           const res = await recipeService.likeRecipe(recipeId);
           set((s) => ({
@@ -313,7 +337,7 @@ export const useRecipeStore = create<RecipeStore>()(
                 ? {
                     ...r,
                     isLiked: res.liked,
-                    isDisliked: res.liked ? false : r.isDisliked,
+                    isDisliked: res.is_disliked !== undefined ? res.is_disliked : (res.liked ? false : r.isDisliked),
                     likesCount: res.likes_count,
                     dislikesCount: res.dislikes_count,
                   }
@@ -324,6 +348,21 @@ export const useRecipeStore = create<RecipeStore>()(
       },
 
       dislikeRecipe: async (recipeId) => {
+        // Optimistic store update
+        set((s) => ({
+          recipes: s.recipes.map((r) => {
+            if (r.id !== recipeId) return r;
+            const willDislike = !r.isDisliked;
+            return {
+              ...r,
+              isDisliked: willDislike,
+              isLiked: false,
+              dislikesCount: willDislike ? (r.dislikesCount || 0) + 1 : Math.max(0, (r.dislikesCount || 0) - 1),
+              likesCount: r.isLiked ? Math.max(0, (r.likesCount || 0) - 1) : (r.likesCount || 0),
+            };
+          }),
+        }));
+
         try {
           const res = await recipeService.dislikeRecipe(recipeId);
           set((s) => ({
@@ -332,7 +371,7 @@ export const useRecipeStore = create<RecipeStore>()(
                 ? {
                     ...r,
                     isDisliked: res.disliked,
-                    isLiked: res.disliked ? false : r.isLiked,
+                    isLiked: res.is_liked !== undefined ? res.is_liked : (res.disliked ? false : r.isLiked),
                     likesCount: res.likes_count,
                     dislikesCount: res.dislikes_count,
                   }
