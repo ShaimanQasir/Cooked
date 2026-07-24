@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.shortcuts import get_object_or_404
 from .models import Recipe, SavedRecipe, RecipeRating
 from .serializers import (
@@ -12,6 +13,7 @@ from .permissions import IsAuthorOrReadOnly
 # --- RECIPE VIEWS ---
 class RecipeListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     throttle_scope = 'recipe'
 
     def get(self, request):
@@ -39,6 +41,7 @@ class RecipeListCreateView(APIView):
 
 class RecipeDetailView(APIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsAuthorOrReadOnly]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     throttle_scope = 'recipe'
 
     def get_object(self, pk):
@@ -84,6 +87,8 @@ class RecipeLikeView(APIView):
             liked = True
         return Response({
             "liked": liked,
+            "is_liked": liked,
+            "is_disliked": False if liked else recipe.dislikes.filter(id=request.user.id).exists(),
             "likes_count": recipe.likes.count(),
             "dislikes_count": recipe.dislikes.count()
         }, status=status.HTTP_200_OK)
@@ -108,6 +113,8 @@ class RecipeDislikeView(APIView):
             disliked = True
         return Response({
             "disliked": disliked,
+            "is_disliked": disliked,
+            "is_liked": False if disliked else recipe.likes.filter(id=request.user.id).exists(),
             "likes_count": recipe.likes.count(),
             "dislikes_count": recipe.dislikes.count()
         }, status=status.HTTP_200_OK)
@@ -152,26 +159,36 @@ class SavedRecipeListCreateView(APIView):
                     {"error": "Private recipes cannot be saved."},
                     status=status.HTTP_403_FORBIDDEN
                 )
-            if SavedRecipe.objects.filter(user=request.user, recipe=recipe).exists():
-                return Response({"error": "Recipe already saved"}, status=status.HTTP_400_BAD_REQUEST)
-            serializer.save(user=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            existing = SavedRecipe.objects.filter(user=request.user, recipe=recipe).first()
+            if existing:
+                existing.delete()
+                return Response({"saved": False, "message": "Removed from favorites"}, status=status.HTTP_200_OK)
+
+            saved_obj = serializer.save(user=request.user)
+            res_data = SavedRecipeSerializer(saved_obj, context={'request': request}).data
+            res_data['saved'] = True
+            return Response(res_data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request):
+        recipe_id = request.data.get('recipe') or request.query_params.get('recipe')
+        if recipe_id:
+            SavedRecipe.objects.filter(user=request.user, recipe_id=recipe_id).delete()
+            return Response({"saved": False, "message": "Removed from favorites"}, status=status.HTTP_200_OK)
+        return Response({"error": "Recipe ID required"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class SavedRecipeDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsAuthorOrReadOnly]
     throttle_scope = 'recipe'
 
-    def get_object(self, pk):
-        obj = get_object_or_404(SavedRecipe, pk=pk)
-        self.check_object_permissions(self.request, obj)
-        return obj
-
     def delete(self, request, pk):
-        save = self.get_object(pk)
-        save.delete()
-        return Response({"message": "Recipe unsaved"}, status=status.HTTP_204_NO_CONTENT)
+        from django.db.models import Q
+        saves = SavedRecipe.objects.filter(user=request.user).filter(Q(id=pk) | Q(recipe_id=pk))
+        if saves.exists():
+            saves.delete()
+            return Response({"saved": False, "message": "Recipe unsaved"}, status=status.HTTP_200_OK)
+        return Response({"saved": False, "message": "Recipe unsaved"}, status=status.HTTP_200_OK)
 
 
 # --- RATING VIEWS ---
