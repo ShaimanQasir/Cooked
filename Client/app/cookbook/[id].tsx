@@ -23,7 +23,7 @@ export default function CookbookDetailsScreen() {
   const searchParams = useLocalSearchParams();
   const id = Number(searchParams.id);
   
-  const { cookbooks, fetchRecipeById, deleteCookbook, fetchCookBooks } = useRecipeStore();
+  const { cookbooks, fetchRecipeById, deleteCookbook, fetchCookBooks, likeRecipe } = useRecipeStore();
   const { show } = useToastStore();
 
   const cookbook = cookbooks.find((cb) => cb.id === id);
@@ -186,9 +186,20 @@ export default function CookbookDetailsScreen() {
                     <Text style={styles.metricText}>
                       <Ionicons name="time-outline" size={12} /> {recipe.prepTime + recipe.cookTime} min
                     </Text>
-                    <Text style={[styles.metricText, { marginLeft: 12 }]}>
-                      <Ionicons name="flame-outline" size={12} /> {recipe.calories} kcal
-                    </Text>
+                    <TouchableOpacity
+                      style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 12, gap: 4 }}
+                      onPress={() => likeRecipe(recipe.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons
+                        name={recipe.isLiked ? 'thumbs-up' : 'thumbs-up-outline'}
+                        size={12}
+                        color={recipe.isLiked ? Colors.primary : Colors.textMuted}
+                      />
+                      <Text style={[styles.metricText, recipe.isLiked && { color: Colors.primary, fontWeight: '700' }]}>
+                        {recipe.likesCount || 0} likes
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
 
