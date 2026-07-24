@@ -5,11 +5,13 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useUserStore } from '../../store/useUserStore';
 import { useRecipeStore } from '../../store/useRecipeStore';
+import { useToastStore } from '../../store/useToastStore';
 import Skeleton from '../../components/Skeleton';
 import Colors from '../../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
@@ -57,11 +59,27 @@ const MenuItem: React.FC<MenuItemProps> = ({ icon, title, onPress, badge, isDest
 
 export default function ProfileTabScreen() {
   const router = useRouter();
-  const { profile, currentUserId } = useUserStore();
+  const { profile, currentUserId, logout } = useUserStore();
   const { recipes, savedRecipes, recentlyViewedIds } = useRecipeStore();
+  const { show } = useToastStore();
 
   const handleLogoutPress = () => {
-    router.push('/auth/logout-modal');
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out of your account?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            show('Signed out successfully', 'success');
+            router.replace('/auth/login');
+          },
+        },
+      ]
+    );
   };
 
   const myRecipesCount = recipes.filter((r) => r.authorId === currentUserId).length;
