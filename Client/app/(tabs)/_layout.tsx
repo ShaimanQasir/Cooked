@@ -24,7 +24,6 @@ function TabIcon({
       <Text style={[styles.tabLabel, focused && styles.tabLabelActive]} numberOfLines={1} ellipsizeMode="tail">
         {label}
       </Text>
-      {focused && <View style={styles.activeDot} />}
     </View>
   );
 }
@@ -52,6 +51,7 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.textMuted,
         tabBarStyle: styles.tabBar,
+        tabBarItemStyle: styles.tabBarItem,
         tabBarLabelStyle: { display: 'none' }, // We render custom labels inside TabIcon
         headerShown: false,
         tabBarShowLabel: false,
@@ -131,31 +131,36 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   tabBar: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 22 : 14,
-    left: 22,
-    right: 22,
+    bottom: Platform.OS === 'ios' ? 24 : 16,
+    left: 0,
+    right: 0,
+    marginHorizontal: 18,
     height: 66,
-    borderRadius: 18,
+    borderRadius: 22,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 0,
     paddingBottom: 0,
     paddingTop: 0,
     shadowColor: '#1C1C1A',
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.12,
     shadowRadius: 16,
     elevation: 8,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: 'rgba(235, 234, 228, 0.9)',
+  },
+  tabBarItem: {
+    height: 66,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingTop: 13,
+    paddingBottom: 4,
   },
   tabItemWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
     height: '100%',
-    width: 58,
-    position: 'relative',
+    width: 60,
   },
   iconContainer: {
     width: 36,
@@ -179,38 +184,30 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: '800',
   },
-  activeDot: {
-    position: 'absolute',
-    bottom: 4,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.primary,
-  },
   floatingButtonContainer: {
-    top: -22,
+    top: -18,
     justifyContent: 'center',
     alignItems: 'center',
-    width: 62,
-    height: 62,
-  },
-  floatingOuterRing: {
     width: 60,
     height: 60,
-    borderRadius: 30,
+  },
+  floatingOuterRing: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     backgroundColor: '#FFF1F0',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 10,
     elevation: 6,
   },
   floatingButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
