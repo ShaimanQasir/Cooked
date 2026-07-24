@@ -9,10 +9,12 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useRecipeStore, Recipe } from '../../store/useRecipeStore';
 import { useToastStore } from '../../store/useToastStore';
 import { CreateRecipePayload } from '../../services/recipe.service';
@@ -41,6 +43,8 @@ export default function EditRecipeScreen() {
   // Form fields
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
+  const [imageUri, setImageUri] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy');
   const [prepTime, setPrepTime] = useState('');
   const [cookTime, setCookTime] = useState('');
@@ -71,6 +75,8 @@ export default function EditRecipeScreen() {
     setRecipe(r);
     setTitle(r.title);
     setDescription(r.description || '');
+    setVideoUrl(r.videoUrl || '');
+    setImageUri(r.image || null);
     setDifficulty((r.difficulty || 'easy') as 'easy' | 'medium' | 'hard');
     setPrepTime(String(r.prepTime || ''));
     setCookTime(String(r.cookTime || ''));
@@ -87,6 +93,29 @@ export default function EditRecipeScreen() {
           }))
         : [{ name: '', quantity: '', unit: '' }]
     );
+  };
+
+  const handlePickImage = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        show('Permission to access photo library is required', 'error');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setImageUri(result.assets[0].uri);
+      }
+    } catch (err: any) {
+      show('Failed to pick image', 'error');
+    }
   };
 
   const handleAddIngredient = () => setIngredients([...ingredients, { name: '', quantity: '', unit: '' }]);
@@ -123,6 +152,8 @@ export default function EditRecipeScreen() {
       const payload: CreateRecipePayload = {
         title: title.trim(),
         description: description.trim() || undefined,
+        video_url: videoUrl.trim() || undefined,
+        image: imageUri || undefined,
         difficulty,
         prep_time: parseInt(prepTime) || 0,
         cook_time: parseInt(cookTime) || 0,
@@ -169,8 +200,31 @@ export default function EditRecipeScreen() {
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.container}>
+          {/* Cover Image Picker */}
+          <Text style={styles.sectionLabel}>Recipe Cover Photo</Text>
+          <TouchableOpacity style={styles.imagePickerBox} onPress={handlePickImage} activeOpacity={0.85}>
+            {imageUri ? (
+              <View style={styles.imagePreviewContainer}>
+                <Image source={{ uri: imageUri }} style={styles.imagePreview} />
+                <View style={styles.imageChangeBadge}>
+                  <Ionicons name="camera-outline" size={16} color={Colors.white} />
+                  <Text style={styles.imageChangeText}>Change Photo</Text>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.imagePlaceholderContainer}>
+                <View style={styles.imageIconCircle}>
+                  <Ionicons name="cloud-upload-outline" size={28} color={Colors.primary} />
+                </View>
+                <Text style={styles.imagePickerTitle}>Upload Recipe Cover Photo</Text>
+                <Text style={styles.imagePickerSub}>Tap to pick image from your device gallery</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
           <Input label="Recipe Title" value={title} onChangeText={setTitle} placeholder="e.g. Spaghetti Carbonara" />
           <Input label="Short Description" value={description} onChangeText={setDescription} placeholder="Describe your dish…" />
+          <Input label="Recipe Video Link (YouTube / Vimeo / Video URL)" value={videoUrl} onChangeText={setVideoUrl} placeholder="https://youtube.com/watch?v=..." />
 
           <View style={styles.row}>
             <View style={{ flex: 1 }}>
@@ -290,6 +344,68 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', width: '100%' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, marginBottom: 8 },
   sectionLabel: { fontSize: 14, fontWeight: '700', color: Colors.textMuted, marginBottom: 8 },
+  imagePickerBox: {
+    height: 180,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderStyle: 'dashed',
+    backgroundColor: '#FAF9F6',
+    overflow: 'hidden',
+    marginBottom: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imagePreviewContainer: {
+    width: '100%',
+    height: '100%',
+    position: 'relative',
+  },
+  imagePreview: {
+    width: '100%',
+    height: '100%',
+  },
+  imageChangeBadge: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+  },
+  imageChangeText: {
+    color: Colors.white,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  imagePlaceholderContainer: {
+    alignItems: 'center',
+    padding: 16,
+  },
+  imageIconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#FFF1F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  imagePickerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  imagePickerSub: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
   difficultyRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
   diffBtn: {
     flex: 1, height: 44, borderRadius: 22, borderWidth: 1.5,
