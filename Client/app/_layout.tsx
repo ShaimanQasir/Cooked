@@ -105,11 +105,10 @@ function RootLayoutNav({ loaded }: { loaded: boolean }) {
       }
     } else if (!isOnboarded) {
       const inOnboardingGroup = segments[0] === 'onboarding';
-      const currentOnboardingScreen = segments[1] || '';
-      const expectedRoute = ONBOARDING_STEP_TO_ROUTE[onboardingStep] || 'details';
 
-      // If not in onboarding group, or if in onboarding but wrong step, redirect to correct step
-      if (!inOnboardingGroup || currentOnboardingScreen !== expectedRoute) {
+      // If user is not inside onboarding stack, redirect them to initial onboarding step
+      if (!inOnboardingGroup) {
+        const expectedRoute = ONBOARDING_STEP_TO_ROUTE[onboardingStep] || 'details';
         router.replace(`/onboarding/${expectedRoute}`);
       }
     } else {
