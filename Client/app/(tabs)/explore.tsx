@@ -13,6 +13,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useRecipeStore, Recipe } from '../../store/useRecipeStore';
+import RecipeCard from '../../components/RecipeCard';
+import FilterModal, { FilterOptions } from '../../components/FilterModal';
 import Skeleton from '../../components/Skeleton';
 import Colors from '../../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,12 +37,20 @@ export default function ExploreScreen() {
     recipesLoading,
     fetchRecipes,
     toggleSaveRecipe,
+    likeRecipe,
     savedRecipes,
   } = useRecipeStore();
 
   const [activeTag, setActiveTag] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [customFilters, setCustomFilters] = useState<FilterOptions>({
+    difficulty: 'all',
+    cuisine: 'All',
+    maxTime: 0,
+    sortBy: 'newest',
+  });
 
   useEffect(() => {
     fetchRecipes(true);
@@ -58,23 +68,69 @@ export default function ExploreScreen() {
 
   const isSaved = (recipeId: number) => savedRecipes.some((s) => s.recipeId === recipeId);
 
-  const filteredRecipes = recipes.filter((r) => {
-    const matchesTag = activeTag === 'all' || (r.cuisine && r.cuisine.toLowerCase() === activeTag);
-    const matchesSearch =
-      !searchQuery ||
-      r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (r.cuisine && r.cuisine.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesTag && matchesSearch;
-  });
+  const isFilterActive =
+    customFilters.difficulty !== 'all' ||
+    customFilters.cuisine !== 'All' ||
+    customFilters.maxTime > 0 ||
+    customFilters.sortBy !== 'newest';
 
-  const popularRecipes = filteredRecipes.slice(0, 10);
-  const quickRecipes = recipes.filter((r) => (r.prepTime + r.cookTime) <= 25).slice(0, 6);
+  const filteredRecipes = recipes
+    .filter((r) => {
+      const matchesTag = activeTag === 'all' || (r.cuisine && r.cuisine.toLowerCase() === activeTag);
+      const matchesSearch =
+        !searchQuery ||
+        r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (r.cuisine && r.cuisine.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        r.ingredients.some((i) => i.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      if (!matchesTag || !matchesSearch) return false;
+
+      if (customFilters.difficulty !== 'all' && r.difficulty !== customFilters.difficulty) {
+        return false;
+      }
+
+      if (
+        customFilters.cuisine !== 'All' &&
+        (!r.cuisine || r.cuisine.toLowerCase() !== customFilters.cuisine.toLowerCase())
+      ) {
+        return false;
+      }
+
+      const totalTime = (r.prepTime || 0) + (r.cookTime || 0);
+      if (customFilters.maxTime > 0 && totalTime > customFilters.maxTime) {
+        return false;
+      }
+
+      return true;
+    })
+    .sort((a, b) => {
+      if (customFilters.sortBy === 'most_liked') {
+        return (b.likesCount || 0) - (a.likesCount || 0);
+      }
+      if (customFilters.sortBy === 'fastest') {
+        const timeA = (a.prepTime || 0) + (a.cookTime || 0);
+        const timeB = (b.prepTime || 0) + (b.cookTime || 0);
+        return timeA - timeB;
+      }
+      return b.id - a.id;
+    });
+
+  const popularRecipes = filteredRecipes.slice(0, 16);
+  const quickRecipes = recipes.filter((r) => r.prepTime + r.cookTime <= 25).slice(0, 6);
 
   return (
     <View style={styles.mainContainer}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
+      <FilterModal
+        visible={filterModalVisible}
+        onClose={() => setFilterModalVisible(false)}
+        filters={customFilters}
+        onApplyFilters={(f) => setCustomFilters(f)}
+        onResetFilters={() =>
+          setCustomFilters({ difficulty: 'all', cuisine: 'All', maxTime: 0, sortBy: 'newest' })
+        }
+      />
 
-      {/* Header Container */}
       <View style={styles.headerBox}>
         <SafeAreaView edges={['top']}>
           <View style={styles.headerTop}>
@@ -92,24 +148,36 @@ export default function ExploreScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Search Bar */}
-          <View style={styles.searchContainer}>
-            <Ionicons name="search" size={18} color={Colors.textMuted} style={styles.searchIcon} />
-            <TextInput
-              placeholder="Search recipes, cuisines..."
-              placeholderTextColor={Colors.textMuted}
-              style={styles.searchInput}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
-              </TouchableOpacity>
-            )}
+          <View style={styles.searchRow}>
+            <View style={styles.searchContainer}>
+              <Ionicons name="search" size={18} color={Colors.textMuted} style={styles.searchIcon} />
+              <TextInput
+                placeholder="Search recipes, cuisines..."
+                placeholderTextColor={Colors.textMuted}
+                style={styles.searchInput}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <TouchableOpacity
+              style={[styles.filterBtn, isFilterActive && styles.filterBtnActive]}
+              onPress={() => setFilterModalVisible(true)}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name="options-outline"
+                size={18}
+                color={isFilterActive ? Colors.primary : Colors.white}
+              />
+            </TouchableOpacity>
           </View>
 
-          {/* Cuisine Filter Pills */}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -120,16 +188,16 @@ export default function ExploreScreen() {
               return (
                 <TouchableOpacity
                   key={tag.id}
-                  style={[styles.tagPill, isActive ? styles.tagPillActive : null]}
+                  style={[styles.tagPill, isActive && styles.tagPillActive]}
                   onPress={() => setActiveTag(tag.id)}
                   activeOpacity={0.8}
                 >
                   <Ionicons
                     name={tag.icon as any}
                     size={14}
-                    color={isActive ? Colors.primary : Colors.white}
+                    color={isActive ? Colors.primary : 'rgba(255,255,255,0.8)'}
                   />
-                  <Text style={[styles.tagText, isActive ? styles.tagTextActive : null]}>
+                  <Text style={[styles.tagText, isActive && styles.tagTextActive]}>
                     {tag.label}
                   </Text>
                 </TouchableOpacity>
@@ -139,128 +207,77 @@ export default function ExploreScreen() {
         </SafeAreaView>
       </View>
 
-      {/* Main Recipe Grid */}
       <ScrollView
         contentContainerStyle={styles.bodyScroll}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
       >
-        {recipesLoading && recipes.length === 0 ? (
-          <View style={styles.loadingGrid}>
-            {[1, 2, 3, 4].map((i) => (
-              <View key={i} style={styles.skeletonCard}>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionHeading}>
+            {activeTag === 'all'
+              ? 'Popular Recipes'
+              : `${activeTag.charAt(0).toUpperCase() + activeTag.slice(1)} Dishes`}
+          </Text>
+          <Text style={styles.sectionSubHeading}>
+            {popularRecipes.length} {popularRecipes.length === 1 ? 'recipe' : 'recipes'}
+          </Text>
+        </View>
+
+        {recipesLoading && popularRecipes.length === 0 ? (
+          <View style={styles.recipeGrid}>
+            {[1, 2, 3, 4].map((n) => (
+              <View key={n} style={{ width: '48%', marginBottom: 16 }}>
                 <Skeleton height={140} borderRadius={16} icon="restaurant" />
-                <View style={{ marginTop: 8 }}>
-                  <Skeleton height={16} borderRadius={4} width="70%" />
-                  <Skeleton height={12} borderRadius={4} width="40%" style={{ marginTop: 6 }} />
-                </View>
+                <Skeleton height={16} width="80%" borderRadius={6} style={{ marginTop: 8 }} />
               </View>
             ))}
           </View>
         ) : popularRecipes.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <View style={styles.emptyIconBg}>
-              <Ionicons name="compass-outline" size={48} color={Colors.textMuted} />
-            </View>
-            <Text style={styles.emptyTitle}>No recipes found</Text>
-            <Text style={styles.emptySub}>Try adjusting your search query or cuisine filters</Text>
+            <Ionicons name="restaurant-outline" size={48} color={Colors.textMuted} />
+            <Text style={styles.emptyTitle}>No Recipes Found</Text>
+            <Text style={styles.emptySub}>Try clearing search query or custom filters.</Text>
           </View>
         ) : (
+          <View style={styles.recipeGrid}>
+            {popularRecipes.map((recipe) => (
+              <RecipeCard
+                key={recipe.id}
+                recipe={recipe}
+                isSaved={isSaved(recipe.id)}
+                onPress={() => handleRecipePress(recipe.id)}
+                onLike={() => likeRecipe(recipe.id)}
+                onFavorite={() => toggleSaveRecipe(recipe.id)}
+                width="48%"
+                marginRight={0}
+                marginBottom={14}
+              />
+            ))}
+          </View>
+        )}
+
+        {quickRecipes.length > 0 && activeTag === 'all' && !searchQuery && (
           <>
-            <Text style={styles.sectionHeading}>
-              {activeTag === 'all' ? 'Popular Recipes' : `${activeTag.toUpperCase()} Recipes`} ({popularRecipes.length})
-            </Text>
-
-            <View style={styles.recipeGrid}>
-              {popularRecipes.map((recipe) => {
-                const difficultyColor =
-                  recipe.difficulty === 'easy' ? '#22C55E' :
-                  recipe.difficulty === 'medium' ? '#F59E0B' : '#EF4444';
-
-                return (
-                  <TouchableOpacity
-                    key={recipe.id}
-                    style={styles.gridCard}
-                    onPress={() => handleRecipePress(recipe.id)}
-                    activeOpacity={0.85}
-                  >
-                    <View style={styles.gridImageWrapper}>
-                      {recipe.image ? (
-                        <Image source={{ uri: recipe.image }} style={styles.gridImage} />
-                      ) : (
-                        <Skeleton height={135} borderRadius={0} icon="restaurant" />
-                      )}
-                      <TouchableOpacity
-                        style={styles.gridHeartBtn}
-                        onPress={() => toggleSaveRecipe(recipe.id)}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons
-                          name={isSaved(recipe.id) ? 'heart' : 'heart-outline'}
-                          size={18}
-                          color={isSaved(recipe.id) ? Colors.primary : Colors.white}
-                        />
-                      </TouchableOpacity>
-                      <View style={[styles.diffBadge, { backgroundColor: difficultyColor }]}>
-                        <Text style={styles.diffBadgeText}>{recipe.difficulty}</Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.gridCardInfo}>
-                      <Text style={styles.gridTitle} numberOfLines={1}>
-                        {recipe.title}
-                      </Text>
-                      <View style={styles.gridMetaRow}>
-                        <Ionicons name="time-outline" size={13} color={Colors.textMuted} />
-                        <Text style={styles.gridMetaText}>
-                          {recipe.prepTime + recipe.cookTime} min
-                        </Text>
-                        <Text style={styles.gridDot}>·</Text>
-                        <Ionicons name="thumbs-up-outline" size={12} color={Colors.textMuted} />
-                        <Text style={styles.gridMetaText}>{recipe.likesCount || 0}</Text>
-                      </View>
-                      {recipe.cuisine ? (
-                        <Text style={styles.gridCuisine}>{recipe.cuisine} Cuisine</Text>
-                      ) : null}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* Quick Meals Section */}
-            {quickRecipes.length > 0 && activeTag === 'all' && !searchQuery && (
-              <>
-                <Text style={[styles.sectionHeading, { marginTop: 24 }]}>Quick & Easy Meals (Under 25 mins)</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.horizontalScroll}
-                >
-                  {quickRecipes.map((recipe) => (
-                    <TouchableOpacity
-                      key={recipe.id}
-                      style={styles.quickCard}
-                      onPress={() => handleRecipePress(recipe.id)}
-                      activeOpacity={0.85}
-                    >
-                      <View style={styles.quickImageWrapper}>
-                        {recipe.image ? (
-                          <Image source={{ uri: recipe.image }} style={styles.quickImage} />
-                        ) : (
-                          <Skeleton height={90} borderRadius={0} icon="restaurant" />
-                        )}
-                      </View>
-                      <Text style={styles.quickTitle} numberOfLines={1}>{recipe.title}</Text>
-                      <View style={styles.gridMetaRow}>
-                        <Ionicons name="flash-outline" size={12} color={Colors.primary} />
-                        <Text style={styles.gridMetaText}>{recipe.prepTime + recipe.cookTime} min</Text>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </>
-            )}
+            <Text style={[styles.sectionHeading, { marginTop: 24 }]}>Quick & Easy Meals (Under 25 mins)</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalScroll}
+            >
+              {quickRecipes.map((recipe) => (
+                <RecipeCard
+                  key={recipe.id}
+                  recipe={recipe}
+                  isSaved={isSaved(recipe.id)}
+                  onPress={() => handleRecipePress(recipe.id)}
+                  onLike={() => likeRecipe(recipe.id)}
+                  onFavorite={() => toggleSaveRecipe(recipe.id)}
+                  width={220}
+                  marginRight={14}
+                  marginBottom={0}
+                />
+              ))}
+            </ScrollView>
           </>
         )}
       </ScrollView>
@@ -323,14 +340,31 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.primary,
   },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14,
+  },
   searchContainer: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
     height: 48,
     borderRadius: 16,
     paddingHorizontal: 14,
-    marginBottom: 14,
+  },
+  filterBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  filterBtnActive: {
+    backgroundColor: Colors.white,
   },
   searchIcon: {
     marginRight: 8,
@@ -372,12 +406,22 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 110,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
   sectionHeading: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '800',
     color: Colors.text,
-    marginBottom: 14,
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
+  },
+  sectionSubHeading: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textMuted,
   },
   loadingGrid: {
     gap: 16,
@@ -446,16 +490,24 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  gridHeartBtn: {
+  topOverlayRow: {
     position: 'absolute',
     top: 8,
     right: 8,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  overlayIconBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  overlayIconBtnActive: {
+    backgroundColor: Colors.white,
   },
   diffBadge: {
     position: 'absolute',
@@ -485,10 +537,19 @@ const styles = StyleSheet.create({
     marginTop: 4,
     gap: 4,
   },
+  gridLikeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
   gridMetaText: {
     fontSize: 11,
     fontWeight: '500',
     color: Colors.textMuted,
+  },
+  gridMetaTextActive: {
+    color: Colors.primary,
+    fontWeight: '700',
   },
   gridDot: {
     fontSize: 11,
