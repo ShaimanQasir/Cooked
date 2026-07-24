@@ -20,3 +20,7 @@ app.include_router(router)
 @app.get("/")
 async def root():
     return {"message": "Cooked AI Service is running"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("app.main:app", host="127.0.0.1", port=6000, reload=True)
