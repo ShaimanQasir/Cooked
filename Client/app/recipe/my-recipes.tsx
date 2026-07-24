@@ -26,10 +26,12 @@ function RecipeManageCard({
   recipe,
   onOpenMenu,
   onView,
+  onLike,
 }: {
   recipe: Recipe;
   onOpenMenu: () => void;
   onView: () => void;
+  onLike: () => void;
 }) {
   const difficultyColor =
     recipe.difficulty === 'easy' ? '#22C55E' :
@@ -86,8 +88,20 @@ function RecipeManageCard({
             {recipe.prepTime + recipe.cookTime} min
           </Text>
           <Text style={styles.cardMetaText}>·</Text>
-          <Ionicons name="thumbs-up-outline" size={12} color={Colors.textMuted} />
-          <Text style={styles.cardMetaText}>{recipe.likesCount || 0}</Text>
+          <TouchableOpacity
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}
+            onPress={onLike}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={recipe.isLiked ? 'thumbs-up' : 'thumbs-up-outline'}
+              size={12}
+              color={recipe.isLiked ? Colors.primary : Colors.textMuted}
+            />
+            <Text style={[styles.cardMetaText, recipe.isLiked && { color: Colors.primary, fontWeight: '700' }]}>
+              {recipe.likesCount || 0}
+            </Text>
+          </TouchableOpacity>
         </View>
         {recipe.cuisine ? (
           <Text style={styles.cardCuisine}>{recipe.cuisine}</Text>
@@ -111,7 +125,7 @@ function RecipeManageCard({
 
 export default function MyRecipesScreen() {
   const router = useRouter();
-  const { recipes, fetchRecipes, deleteRecipe, archiveRecipe, recipesLoading } = useRecipeStore();
+  const { recipes, fetchRecipes, deleteRecipe, archiveRecipe, likeRecipe, recipesLoading } = useRecipeStore();
   const { currentUserId } = useUserStore();
   const { show } = useToastStore();
 
@@ -266,6 +280,7 @@ export default function MyRecipesScreen() {
               recipe={item}
               onView={() => router.push({ pathname: '/recipe/[id]', params: { id: String(item.id) } })}
               onOpenMenu={() => setSelectedRecipeForMenu(item)}
+              onLike={() => likeRecipe(item.id)}
             />
           )}
         />
