@@ -54,6 +54,7 @@ export interface BackendSavedRecipe {
   recipe: number;
   recipe_details: BackendRecipe;
   created_at: string;
+  saved?: boolean;
 }
 
 export interface BackendCookBook {
@@ -94,6 +95,8 @@ export interface PaginatedResponse<T> {
 export interface CreateRecipePayload {
   title: string;
   description?: string;
+  video_url?: string;
+  image?: any;
   difficulty: 'easy' | 'medium' | 'hard';
   prep_time: number;
   cook_time: number;
@@ -108,6 +111,48 @@ export interface CreateRecipePayload {
   cuisine_type?: string;            // plain string — backend resolves FK
   allergen_info?: string[];         // plain strings — backend resolves FK
   ingredients?: BackendIngredientDetail[];
+}
+
+function buildRecipePayload(data: any): FormData | string {
+  const hasFileImage =
+    data.image &&
+    (typeof data.image === 'object' ||
+      (typeof data.image === 'string' &&
+        (data.image.startsWith('file:') ||
+         data.image.startsWith('content:') ||
+         data.image.startsWith('blob:') ||
+         data.image.startsWith('ph:'))));
+
+  if (!hasFileImage) {
+    return JSON.stringify(data);
+  }
+
+  const formData = new FormData();
+  Object.keys(data).forEach((key) => {
+    const val = data[key];
+    if (val === undefined || val === null) return;
+
+    if (key === 'image') {
+      if (typeof val === 'object' && val.uri) {
+        formData.append('image', val as any);
+      } else if (typeof val === 'string') {
+        const filename = val.split('/').pop() || 'photo.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : `image/jpeg`;
+        formData.append('image', {
+          uri: val,
+          name: filename,
+          type,
+        } as any);
+      }
+    } else if (key === 'ingredients' || key === 'allergen_info') {
+      formData.append(key, JSON.stringify(val));
+    } else {
+      formData.append(key, String(val));
+    }
+  });
+
+  return formData;
 }
 
 // -------------------------------------------------------
@@ -127,26 +172,26 @@ export const recipeService = {
   createRecipe: (data: CreateRecipePayload) =>
     apiFetch<BackendRecipe>('/recipe/recipes/', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: buildRecipePayload(data),
     }),
 
   updateRecipe: (id: number, data: Partial<CreateRecipePayload>) =>
     apiFetch<BackendRecipe>(`/recipe/recipes/${id}/`, {
       method: 'PATCH',
-      body: JSON.stringify(data),
+      body: buildRecipePayload(data),
     }),
 
   deleteRecipe: (id: number) =>
     apiFetch<void>(`/recipe/recipes/${id}/`, { method: 'DELETE' }),
 
   likeRecipe: (id: number) =>
-    apiFetch<{ liked: boolean; likes_count: number; dislikes_count: number }>(
+    apiFetch<{ liked: boolean; is_liked?: boolean; is_disliked?: boolean; likes_count: number; dislikes_count: number }>(
       `/recipe/recipes/${id}/like/`,
       { method: 'POST' }
     ),
 
   dislikeRecipe: (id: number) =>
-    apiFetch<{ disliked: boolean; likes_count: number; dislikes_count: number }>(
+    apiFetch<{ disliked: boolean; is_liked?: boolean; is_disliked?: boolean; likes_count: number; dislikes_count: number }>(
       `/recipe/recipes/${id}/dislike/`,
       { method: 'POST' }
     ),
