@@ -8,12 +8,13 @@ import {
   TouchableOpacity,
   RefreshControl,
   Image,
-  ImageBackground,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useUserStore } from '../../store/useUserStore';
 import { useRecipeStore, Recipe } from '../../store/useRecipeStore';
+import RecipeCard from '../../components/RecipeCard';
+import FilterModal, { FilterOptions } from '../../components/FilterModal';
 import Skeleton from '../../components/Skeleton';
 import Colors from '../../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,12 +39,20 @@ export default function HomeScreen() {
     fetchSavedRecipes,
     fetchCookBooks,
     toggleSaveRecipe,
+    likeRecipe,
     addToRecentlyViewed,
   } = useRecipeStore();
 
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [customFilters, setCustomFilters] = useState<FilterOptions>({
+    difficulty: 'all',
+    cuisine: 'All',
+    maxTime: 0,
+    sortBy: 'newest',
+  });
 
   useEffect(() => {
     fetchRecipes(true);
@@ -64,27 +73,73 @@ export default function HomeScreen() {
 
   const isSaved = (recipeId: number) => savedRecipes.some((s) => s.recipeId === recipeId);
 
-  const filteredRecipes = recipes.filter((r) => {
-    const matchesSearch =
-      !searchQuery ||
-      r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (r.cuisine && r.cuisine.toLowerCase().includes(searchQuery.toLowerCase()));
+  const isFilterActive =
+    customFilters.difficulty !== 'all' ||
+    customFilters.cuisine !== 'All' ||
+    customFilters.maxTime > 0 ||
+    customFilters.sortBy !== 'newest';
 
-    if (!matchesSearch) return false;
-    if (selectedCategory === 'quick') return r.prepTime + r.cookTime <= 25;
-    if (selectedCategory === 'protein') return (r.proteins || 0) >= 20;
-    if (selectedCategory === 'healthy') return (r.calories || 0) <= 400;
-    return true;
-  });
+  const filteredRecipes = recipes
+    .filter((r) => {
+      const matchesSearch =
+        !searchQuery ||
+        r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (r.cuisine && r.cuisine.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        r.ingredients.some((i) => i.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
-  const recommendedRecipes = filteredRecipes.slice(0, 6);
+      if (!matchesSearch) return false;
+
+      if (customFilters.difficulty !== 'all' && r.difficulty !== customFilters.difficulty) {
+        return false;
+      }
+
+      if (
+        customFilters.cuisine !== 'All' &&
+        (!r.cuisine || r.cuisine.toLowerCase() !== customFilters.cuisine.toLowerCase())
+      ) {
+        return false;
+      }
+
+      const totalTime = (r.prepTime || 0) + (r.cookTime || 0);
+      if (customFilters.maxTime > 0 && totalTime > customFilters.maxTime) {
+        return false;
+      }
+
+      if (selectedCategory === 'quick') return totalTime <= 25;
+      if (selectedCategory === 'protein') return (r.proteins || 0) >= 20;
+      if (selectedCategory === 'healthy') return (r.calories || 0) <= 400;
+
+      return true;
+    })
+    .sort((a, b) => {
+      if (customFilters.sortBy === 'most_liked') {
+        return (b.likesCount || 0) - (a.likesCount || 0);
+      }
+      if (customFilters.sortBy === 'fastest') {
+        const timeA = (a.prepTime || 0) + (a.cookTime || 0);
+        const timeB = (b.prepTime || 0) + (b.cookTime || 0);
+        return timeA - timeB;
+      }
+      return b.id - a.id;
+    });
+
+  const recommendedRecipes = filteredRecipes.slice(0, 8);
   const recentlyViewedRecipes = recentlyViewedIds
     .map((id) => recipes.find((r) => r.id === id))
     .filter(Boolean)
-    .slice(0, 6) as Recipe[];
+    .slice(0, 8) as Recipe[];
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <FilterModal
+        visible={filterModalVisible}
+        onClose={() => setFilterModalVisible(false)}
+        filters={customFilters}
+        onApplyFilters={(f) => setCustomFilters(f)}
+        onResetFilters={() =>
+          setCustomFilters({ difficulty: 'all', cuisine: 'All', maxTime: 0, sortBy: 'newest' })
+        }
+      />
       <ScrollView
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
@@ -98,10 +153,18 @@ export default function HomeScreen() {
             activeOpacity={0.8}
           >
             <View style={styles.avatarWrapper}>
-              <Skeleton width={44} height={44} borderRadius={22} icon="person" />
+              {(profile as any).image ? (
+                <Image source={{ uri: (profile as any).image }} style={styles.avatarImage} />
+              ) : (
+                <View style={styles.avatarFallback}>
+                  <Text style={styles.avatarInitial}>
+                    {(profile.name || 'C').charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )}
             </View>
             <View style={styles.greetingText}>
-              <Text style={styles.hiText}>Hi, {profile.name || 'Chef'}</Text>
+              <Text style={styles.hiText}>Hi, {profile.name || 'Chef'} 👋</Text>
               <Text style={styles.subText}>What are we cooking today?</Text>
             </View>
           </TouchableOpacity>
@@ -109,29 +172,43 @@ export default function HomeScreen() {
           <View style={styles.headerRightBtns}>
             <TouchableOpacity
               style={styles.headerIconBtn}
-              onPress={() => router.push('/recipe/create')}
+              onPress={() => router.push('/profile/recent')}
               activeOpacity={0.8}
             >
-              <Ionicons name="add" size={22} color={Colors.white} />
+              <Ionicons name="time-outline" size={20} color={Colors.white} />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color={Colors.textMuted} style={styles.searchIcon} />
-          <TextInput
-            placeholder="Search recipes, ingredients, cuisines…"
-            placeholderTextColor={Colors.textMuted}
-            style={styles.searchInput}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
-            </TouchableOpacity>
-          )}
+        {/* Search Bar + Custom Filter Toggle */}
+        <View style={styles.searchRow}>
+          <View style={styles.searchContainer}>
+            <Ionicons name="search" size={20} color={Colors.textMuted} style={styles.searchIcon} />
+            <TextInput
+              placeholder="Search recipes, ingredients, cuisines…"
+              placeholderTextColor={Colors.textMuted}
+              style={styles.searchInput}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <TouchableOpacity
+            style={[styles.filterBtn, isFilterActive && styles.filterBtnActive]}
+            onPress={() => setFilterModalVisible(true)}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name="options-outline"
+              size={20}
+              color={isFilterActive ? Colors.white : Colors.text}
+            />
+          </TouchableOpacity>
         </View>
 
         {/* AI Camera Hero Banner */}
@@ -193,7 +270,7 @@ export default function HomeScreen() {
         {recommendedRecipes.length === 0 ? (
           <View style={styles.emptyCard}>
             <Ionicons name="restaurant-outline" size={36} color={Colors.textMuted} />
-            <Text style={styles.emptyCardText}>No recipes matching your search.</Text>
+            <Text style={styles.emptyCardText}>No recipes matching your search or custom filters.</Text>
           </View>
         ) : (
           <ScrollView
@@ -201,55 +278,19 @@ export default function HomeScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.horizontalScroll}
           >
-            {recommendedRecipes.map((recipe) => {
-              const difficultyColor =
-                recipe.difficulty === 'easy' ? '#22C55E' :
-                recipe.difficulty === 'medium' ? '#F59E0B' : '#EF4444';
-
-              return (
-                <TouchableOpacity
-                  key={recipe.id}
-                  style={styles.recipeCard}
-                  onPress={() => handleRecipePress(recipe.id)}
-                  activeOpacity={0.85}
-                >
-                  <View style={styles.recipeImageWrapper}>
-                    {recipe.image ? (
-                      <Image source={{ uri: recipe.image }} style={styles.recipeImage} />
-                    ) : (
-                      <Skeleton height={130} borderRadius={0} icon="restaurant" />
-                    )}
-                    <TouchableOpacity
-                      style={styles.heartButton}
-                      onPress={() => toggleSaveRecipe(recipe.id)}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons
-                        name={isSaved(recipe.id) ? 'heart' : 'heart-outline'}
-                        size={18}
-                        color={isSaved(recipe.id) ? Colors.primary : Colors.white}
-                      />
-                    </TouchableOpacity>
-                    <View style={[styles.diffTag, { backgroundColor: difficultyColor }]}>
-                      <Text style={styles.diffTagText}>{recipe.difficulty}</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.cardBody}>
-                    <Text style={styles.recipeTitle} numberOfLines={1}>
-                      {recipe.title}
-                    </Text>
-                    <View style={styles.metaRow}>
-                      <Ionicons name="time-outline" size={13} color={Colors.textMuted} />
-                      <Text style={styles.metaText}>{recipe.prepTime + recipe.cookTime} min</Text>
-                      <Text style={styles.metaDot}>·</Text>
-                      <Ionicons name="flame-outline" size={13} color={Colors.textMuted} />
-                      <Text style={styles.metaText}>{recipe.calories || 0} kcal</Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+            {recommendedRecipes.map((recipe) => (
+              <RecipeCard
+                key={recipe.id}
+                recipe={recipe}
+                isSaved={isSaved(recipe.id)}
+                onPress={() => handleRecipePress(recipe.id)}
+                onLike={() => likeRecipe(recipe.id)}
+                onFavorite={() => toggleSaveRecipe(recipe.id)}
+                width={220}
+                marginRight={14}
+                marginBottom={0}
+              />
+            ))}
           </ScrollView>
         )}
 
@@ -269,24 +310,17 @@ export default function HomeScreen() {
               contentContainerStyle={styles.horizontalScroll}
             >
               {recentlyViewedRecipes.map((recipe) => (
-                <TouchableOpacity
+                <RecipeCard
                   key={recipe.id}
-                  style={styles.miniCard}
+                  recipe={recipe}
+                  isSaved={isSaved(recipe.id)}
                   onPress={() => handleRecipePress(recipe.id)}
-                  activeOpacity={0.85}
-                >
-                  <View style={styles.miniImageWrapper}>
-                    {recipe.image ? (
-                      <Image source={{ uri: recipe.image }} style={styles.miniImage} />
-                    ) : (
-                      <Skeleton height={85} borderRadius={0} icon="restaurant" />
-                    )}
-                  </View>
-                  <View style={styles.miniCardBody}>
-                    <Text style={styles.miniTitle} numberOfLines={1}>{recipe.title}</Text>
-                    <Text style={styles.miniSub}>{recipe.prepTime + recipe.cookTime} min</Text>
-                  </View>
-                </TouchableOpacity>
+                  onLike={() => likeRecipe(recipe.id)}
+                  onFavorite={() => toggleSaveRecipe(recipe.id)}
+                  width={220}
+                  marginRight={14}
+                  marginBottom={0}
+                />
               ))}
             </ScrollView>
           </>
@@ -354,6 +388,24 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 2,
   },
+  avatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  avatarFallback: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFF1F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarInitial: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.primary,
+  },
   greetingText: {
     marginLeft: 12,
   },
@@ -386,7 +438,14 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 18,
+  },
   searchContainer: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
@@ -395,12 +454,30 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: Colors.border,
     paddingHorizontal: 16,
-    marginBottom: 18,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 2,
+  },
+  filterBtn: {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    backgroundColor: Colors.white,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  filterBtnActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   searchIcon: {
     marginRight: 10,
@@ -555,6 +632,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  topOverlayRow: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  overlayIconBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  overlayIconBtnActive: {
+    backgroundColor: Colors.white,
+  },
   diffTag: {
     position: 'absolute',
     bottom: 8,
@@ -583,10 +679,19 @@ const styles = StyleSheet.create({
     marginTop: 6,
     gap: 4,
   },
+  metaLikeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   metaText: {
     fontSize: 11,
     fontWeight: '500',
     color: Colors.textMuted,
+  },
+  metaTextActive: {
+    color: Colors.primary,
+    fontWeight: '700',
   },
   metaDot: {
     fontSize: 11,
