@@ -83,7 +83,7 @@ cd Server/fastapi_backend
 python -m venv .fastapi_venv
 source .fastapi_venv/bin/activate  # Or `.fastapi_venv\Scripts\activate` on Windows`
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8001
+uvicorn app.main:app --reload --port 6000
 ```
 
 ---
