@@ -1,3 +1,4 @@
+import json
 from rest_framework import serializers
 from .models import Recipe, SavedRecipe, RecipeRating, Ingredient, RecipeIngredient
 from app.userProfile.models import Cuisine, Allergy
@@ -71,37 +72,59 @@ class RecipeSerializer(serializers.ModelSerializer):
         representation['allergen_info'] = [a.name for a in instance.allergen_info.all()]
         if instance.cuisine_type:
             representation['cuisine_type'] = instance.cuisine_type.name
+        
+        # Build absolute image URL if request is in context
+        request = self.context.get('request')
+        if instance.image and hasattr(instance.image, 'url'):
+            if request:
+                representation['image'] = request.build_absolute_uri(instance.image.url)
+            else:
+                representation['image'] = instance.image.url
         return representation
 
     def _handle_recipe_logic(self, instance, validated_data):
         """Helper to handle ingredients, allergens, and cuisine"""
         ingredients_data = self.initial_data.get('ingredients') # Use initial_data for nested custom logic
+        if isinstance(ingredients_data, str):
+            try:
+                ingredients_data = json.loads(ingredients_data)
+            except Exception:
+                ingredients_data = []
+
         allergens_data = validated_data.pop('allergen_info', None)
+        if isinstance(allergens_data, str):
+            try:
+                allergens_data = json.loads(allergens_data)
+            except Exception:
+                allergens_data = []
+
         cuisine_name = validated_data.pop('cuisine_type', None)
 
         # 1. Handle Ingredients with Quantities
-        if ingredients_data is not None:
+        if ingredients_data is not None and isinstance(ingredients_data, list):
             # Clear existing ingredients for update
             instance.ingredient_details.all().delete()
             for item in ingredients_data:
-                ing_obj, _ = Ingredient.objects.get_or_create(name=item['name'].strip().title())
-                RecipeIngredient.objects.create(
-                    recipe=instance,
-                    ingredient=ing_obj,
-                    quantity=item.get('quantity', 0),
-                    unit=item.get('unit', '')
-                )
+                if isinstance(item, dict) and 'name' in item:
+                    ing_obj, _ = Ingredient.objects.get_or_create(name=item['name'].strip().title())
+                    RecipeIngredient.objects.create(
+                        recipe=instance,
+                        ingredient=ing_obj,
+                        quantity=item.get('quantity', 0),
+                        unit=item.get('unit', '')
+                    )
 
         # 2. Handle Allergens
-        if allergens_data is not None:
+        if allergens_data is not None and isinstance(allergens_data, list):
             allergen_objs = []
             for name in allergens_data:
-                obj, _ = Allergy.objects.get_or_create(name=name.strip().title())
-                allergen_objs.append(obj)
+                if isinstance(name, str):
+                    obj, _ = Allergy.objects.get_or_create(name=name.strip().title())
+                    allergen_objs.append(obj)
             instance.allergen_info.set(allergen_objs)
 
         # 3. Handle Cuisine
-        if cuisine_name:
+        if cuisine_name and isinstance(cuisine_name, str):
             cuisine_obj, _ = Cuisine.objects.get_or_create(name=cuisine_name.strip().title())
             instance.cuisine_type = cuisine_obj
             instance.save()
