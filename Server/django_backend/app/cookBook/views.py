@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.shortcuts import get_object_or_404
 from app.recipe.permissions import IsAuthorOrReadOnly
 from .models import CookBook
@@ -13,6 +14,7 @@ class CookBookListCreateView(APIView):
     The author is automatically set to the authenticated user and must be verified.
     """
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     throttle_scope = 'cookbook'
 
     def get(self, request):
@@ -46,6 +48,7 @@ class CookBookDetailView(APIView):
     Only the author can update or delete.
     """
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsAuthorOrReadOnly]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     throttle_scope = 'cookbook'
 
     def get_object(self, pk):

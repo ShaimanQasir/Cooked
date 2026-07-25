@@ -22,6 +22,10 @@ class CookBook(models.Model):
     def recipes_count(self):
         return self.recipes.count()
 
+# --- Register Cloudinary Auto Cleanup Signals ---
+from utils.cloudinary_service import register_cloudinary_signals
+register_cloudinary_signals(CookBook, 'image')
+
 
 class CookBookRecipes(models.Model):
     cookbook = models.ForeignKey(CookBook, on_delete=models.CASCADE, related_name='cookbook_recipes')

@@ -109,30 +109,6 @@ class RecipeRating(models.Model):
     def __str__(self):
         return f"{self.rating} stars for {self.recipe.title}"
 
-# --- Cloudinary Signal Receivers ---
-
-@receiver(pre_save, sender=Recipe)
-def auto_delete_old_cloudinary_image_on_update(sender, instance, **kwargs):
-    """
-    Deletes old image from Cloudinary when a Recipe's image is updated or replaced.
-    """
-    if not instance.pk:
-        return False
-    try:
-        old_recipe = Recipe.objects.get(pk=instance.pk)
-    except Recipe.DoesNotExist:
-        return False
-
-    old_image = old_recipe.image
-    new_image = instance.image
-
-    if old_image and old_image != new_image:
-        delete_cloudinary_image(old_image)
-
-@receiver(post_delete, sender=Recipe)
-def auto_delete_cloudinary_image_on_recipe_delete(sender, instance, **kwargs):
-    """
-    Deletes image from Cloudinary when a Recipe is deleted.
-    """
-    if instance.image:
-        delete_cloudinary_image(instance.image)
+# --- Register Cloudinary Auto Cleanup Signals ---
+from utils.cloudinary_service import register_cloudinary_signals
+register_cloudinary_signals(Recipe, 'image')

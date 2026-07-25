@@ -68,7 +68,7 @@ class User(AbstractUser):
     
     def __str__(self):
         return self.email
-    
+
     def can_request_otp(self):
         """Check if user can request a new OTP (max 3 requests per hour)"""
         now = timezone.now()
@@ -213,3 +213,7 @@ class User(AbstractUser):
         self.password_reset_token = None
         self.password_reset_expires_at = None
         self.save()
+
+# --- Register Cloudinary Auto Cleanup Signals ---
+from utils.cloudinary_service import register_cloudinary_signals
+register_cloudinary_signals(User, 'profile_picture')
