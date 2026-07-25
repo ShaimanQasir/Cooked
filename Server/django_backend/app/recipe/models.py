@@ -1,25 +1,6 @@
 from django.db import models
 from django.conf import settings
-from django.db.models.signals import post_delete, pre_save
-from django.dispatch import receiver
 from app.userProfile.models import Cuisine, Allergy, Ingredient
-import os
-
-def delete_cloudinary_image(image_field):
-    """
-    Safely deletes the image asset from Cloudinary storage.
-    """
-    if not image_field:
-        return
-    try:
-        import cloudinary.uploader
-        file_name = getattr(image_field, 'name', str(image_field))
-        if file_name:
-            # Cloudinary destroy requires public_id without extension
-            public_id = os.path.splitext(file_name)[0]
-            cloudinary.uploader.destroy(public_id)
-    except Exception as e:
-        print(f"[Cloudinary Warning] Failed to destroy image '{image_field}': {e}")
 
 class Recipe(models.Model):
     DIFFICULTY_CHOICES = [
