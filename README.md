@@ -103,3 +103,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 *Made with ❤️ for foodies everywhere.*
+
+
+## Media Storage & Cloudinary
+- Centralized Cloudinary Storage Service (`utils/cloudinary_service.py`)
+- Automatic image upload and lifecycle cleanup on Recipe, User Profile, and CookBook models.
