@@ -1,6 +1,25 @@
 from django.db import models
 from django.conf import settings
+from django.db.models.signals import post_delete, pre_save
+from django.dispatch import receiver
 from app.userProfile.models import Cuisine, Allergy, Ingredient
+import os
+
+def delete_cloudinary_image(image_field):
+    """
+    Safely deletes the image asset from Cloudinary storage.
+    """
+    if not image_field:
+        return
+    try:
+        import cloudinary.uploader
+        file_name = getattr(image_field, 'name', str(image_field))
+        if file_name:
+            # Cloudinary destroy requires public_id without extension
+            public_id = os.path.splitext(file_name)[0]
+            cloudinary.uploader.destroy(public_id)
+    except Exception as e:
+        print(f"[Cloudinary Warning] Failed to destroy image '{image_field}': {e}")
 
 class Recipe(models.Model):
     DIFFICULTY_CHOICES = [
@@ -89,3 +108,31 @@ class RecipeRating(models.Model):
 
     def __str__(self):
         return f"{self.rating} stars for {self.recipe.title}"
+
+# --- Cloudinary Signal Receivers ---
+
+@receiver(pre_save, sender=Recipe)
+def auto_delete_old_cloudinary_image_on_update(sender, instance, **kwargs):
+    """
+    Deletes old image from Cloudinary when a Recipe's image is updated or replaced.
+    """
+    if not instance.pk:
+        return False
+    try:
+        old_recipe = Recipe.objects.get(pk=instance.pk)
+    except Recipe.DoesNotExist:
+        return False
+
+    old_image = old_recipe.image
+    new_image = instance.image
+
+    if old_image and old_image != new_image:
+        delete_cloudinary_image(old_image)
+
+@receiver(post_delete, sender=Recipe)
+def auto_delete_cloudinary_image_on_recipe_delete(sender, instance, **kwargs):
+    """
+    Deletes image from Cloudinary when a Recipe is deleted.
+    """
+    if instance.image:
+        delete_cloudinary_image(instance.image)
