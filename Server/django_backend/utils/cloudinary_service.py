@@ -17,6 +17,7 @@ if CLOUDINARY_CONFIG.get('CLOUD_NAME'):
 
 
 def upload_image(file_obj, folder_name: str) -> dict:
+    """Uploads a file object to a specific Cloudinary folder with error handling."""
     """
     Uploads a file object to a specific Cloudinary folder.
 
