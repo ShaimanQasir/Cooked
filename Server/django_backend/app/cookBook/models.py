@@ -22,7 +22,8 @@ class CookBook(models.Model):
     def recipes_count(self):
         return self.recipes.count()
 
-# --- Register Cloudinary Auto Cleanup Signals ---
+# --- Centralized Cloudinary Auto Cleanup Signal Binding ---
+# Automatically destroys old cookbook cover images on update and deletion
 from utils.cloudinary_service import register_cloudinary_signals
 register_cloudinary_signals(CookBook, 'image')
 
