@@ -7,6 +7,7 @@ import {
   TextInput, 
   TouchableOpacity,
   RefreshControl,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -122,9 +123,13 @@ export default function CookbooksListScreen() {
               >
                 {/* Collage / Cover Art */}
                 <View style={styles.coverBox}>
-                  <View style={styles.coverIconCircle}>
-                    <Ionicons name="book" size={32} color={Colors.primary} />
-                  </View>
+                  {cb.image ? (
+                    <Image source={{ uri: cb.image }} style={styles.coverImage} />
+                  ) : (
+                    <View style={styles.coverIconCircle}>
+                      <Ionicons name="book" size={32} color={Colors.primary} />
+                    </View>
+                  )}
                   <View style={styles.countPill}>
                     <Text style={styles.countPillText}>{cb.recipesCount || cb.recipes?.length || 0} recipes</Text>
                   </View>
@@ -302,6 +307,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
     marginBottom: 10,
+  },
+  coverImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 14,
   },
   coverIconCircle: {
     width: 52,

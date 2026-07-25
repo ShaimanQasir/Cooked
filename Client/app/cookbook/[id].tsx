@@ -133,6 +133,12 @@ export default function CookbookDetailsScreen() {
           </View>
         </View>
 
+        {cookbook.image ? (
+          <View style={styles.bannerContainer}>
+            <Image source={{ uri: cookbook.image }} style={styles.bannerImage} />
+          </View>
+        ) : null}
+
         {cookbook.description ? (
           <Text style={styles.descriptionText}>{cookbook.description}</Text>
         ) : null}
@@ -229,6 +235,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 8,
+  },
+  bannerContainer: {
+    height: 180,
+    width: '100%',
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginTop: 8,
+    marginBottom: 14,
+  },
+  bannerImage: {
+    width: '100%',
+    height: '100%',
   },
   headerLeft: {
     flexDirection: 'row',
