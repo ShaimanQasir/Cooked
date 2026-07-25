@@ -90,6 +90,7 @@ class RecipeRating(models.Model):
     def __str__(self):
         return f"{self.rating} stars for {self.recipe.title}"
 
-# --- Register Cloudinary Auto Cleanup Signals ---
+# --- Centralized Cloudinary Auto Cleanup Signal Binding ---
+# Uses utils.cloudinary_service for pre_save update and post_delete cleanup
 from utils.cloudinary_service import register_cloudinary_signals
 register_cloudinary_signals(Recipe, 'image')
