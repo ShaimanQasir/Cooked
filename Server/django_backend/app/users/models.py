@@ -214,6 +214,7 @@ class User(AbstractUser):
         self.password_reset_expires_at = None
         self.save()
 
-# --- Register Cloudinary Auto Cleanup Signals ---
+# --- Centralized Cloudinary Auto Cleanup Signal Binding ---
+# Automatically destroys old profile pictures on update and user deletion
 from utils.cloudinary_service import register_cloudinary_signals
 register_cloudinary_signals(User, 'profile_picture')
