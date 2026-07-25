@@ -10,7 +10,8 @@ from .serializers import CookBookReadSerializer, CookBookWriteSerializer
 
 class CookBookListCreateView(APIView):
     """
-    List all cookbooks (ReadSerializer) or create a new cookbook (WriteSerializer).
+    List all cookbooks (ReadSerializer) or create a new cookbook with optional image (WriteSerializer).
+    Supports MultiPartParser, FormParser, and JSONParser for multipart upload.
     The author is automatically set to the authenticated user and must be verified.
     """
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
