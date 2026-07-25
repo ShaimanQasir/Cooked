@@ -100,5 +100,6 @@ def register_cloudinary_signals(model_class, image_field_name: str = 'image'):
         if image:
             delete_image(image)
 
+    logger.info(f"[Cloudinary Service] Registering auto cleanup signals for model {model_class.__name__}")
     pre_save.connect(pre_save_receiver, sender=model_class, weak=False, dispatch_uid=f"{model_class.__name__}_pre_save_img")
     post_delete.connect(post_delete_receiver, sender=model_class, weak=False, dispatch_uid=f"{model_class.__name__}_post_delete_img")
