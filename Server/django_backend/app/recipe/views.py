@@ -12,6 +12,7 @@ from .permissions import IsAuthorOrReadOnly
 
 # --- RECIPE VIEWS ---
 class RecipeListCreateView(APIView):
+    """View for listing and creating recipes with optional image and video link."""
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     throttle_scope = 'recipe'
