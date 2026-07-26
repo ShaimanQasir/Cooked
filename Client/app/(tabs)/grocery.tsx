@@ -9,13 +9,21 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
-  Alert
+  Alert,
+  LayoutAnimation,
+  Platform,
+  UIManager
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useGroceryStore, GroceryItem } from '../../store/useGroceryStore';
 import Colors from '../../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
+
+// Enable LayoutAnimation for Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 export default function GroceryListScreen() {
   const router = useRouter();
@@ -27,9 +35,20 @@ export default function GroceryListScreen() {
     deleteList, 
     removeItem, 
     addItem, 
-    updateItem 
+    updateItem,
+    clearCheckedItems
   } = useGroceryStore();
+  
   const [refreshing, setRefreshing] = useState(false);
+
+  // Track expanded state of cards (by listName)
+  const [expandedLists, setExpandedLists] = useState<Record<string, boolean>>({});
+
+  // List Action Menu Modal State
+  const [activeListMenu, setActiveListMenu] = useState<string | null>(null);
+
+  // Item Action Menu Modal State
+  const [activeItemMenu, setActiveItemMenu] = useState<GroceryItem | null>(null);
 
   // Edit Item Modal State
   const [editingItem, setEditingItem] = useState<GroceryItem | null>(null);
@@ -72,10 +91,24 @@ export default function GroceryListScreen() {
     }
   };
 
-  const handleDeleteList = (listName: string) => {
+  const toggleExpand = (listName: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedLists((prev) => ({
+      ...prev,
+      [listName]: prev[listName] === undefined ? false : !prev[listName],
+    }));
+  };
+
+  const isListExpanded = (listName: string) => {
+    // By default, expanded if undefined
+    return expandedLists[listName] !== false;
+  };
+
+  const handleDeleteListConfirmed = (listName: string) => {
+    setActiveListMenu(null);
     Alert.alert(
       'Delete Grocery List',
-      `Are you sure you want to delete the list "${listName}"?`,
+      `Are you sure you want to delete "${listName}"?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
@@ -87,7 +120,19 @@ export default function GroceryListScreen() {
     );
   };
 
+  const handleClearChecked = (listName: string) => {
+    setActiveListMenu(null);
+    const listItems = groupedItems[listName] || [];
+    const checked = listItems.filter((i) => i.checked);
+    if (checked.length === 0) {
+      Alert.alert('No Bought Items', 'There are no checked items to clear in this list.');
+      return;
+    }
+    checked.forEach((item) => removeItem(item.id));
+  };
+
   const handleOpenEditItem = (item: GroceryItem) => {
+    setActiveItemMenu(null);
     setEditingItem(item);
     setEditName(item.name);
     setEditQty(item.quantity || '');
@@ -111,6 +156,7 @@ export default function GroceryListScreen() {
   };
 
   const handleOpenQuickAdd = (listName: string) => {
+    setActiveListMenu(null);
     setQuickAddListName(listName);
     setQuickName('');
     setQuickQty('');
@@ -148,7 +194,7 @@ export default function GroceryListScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Scroll List organized by Grocery List Name */}
+        {/* Scroll List of Horizontal Cards */}
         <ScrollView
           style={styles.scrollList}
           contentContainerStyle={styles.listContent}
@@ -183,87 +229,116 @@ export default function GroceryListScreen() {
             Object.keys(groupedItems).map((listName) => {
               const listItems = groupedItems[listName];
               const checkedCount = listItems.filter((i) => i.checked).length;
+              const isExpanded = isListExpanded(listName);
+              const progressPct = Math.round((checkedCount / (listItems.length || 1)) * 100);
 
               return (
-                <View key={listName} style={styles.recipeGroup}>
-                  {/* List Section Header */}
-                  <View style={styles.groupHeaderRow}>
-                    <View style={styles.groupHeaderTitleBox}>
-                      <Text style={styles.recipeGroupHeader}>{listName}</Text>
-                      <View style={styles.countPill}>
-                        <Text style={styles.countPillText}>
-                          {checkedCount}/{listItems.length}
-                        </Text>
+                <View key={listName} style={styles.listCardContainer}>
+                  {/* Full Width Horizontal Card Header */}
+                  <TouchableOpacity
+                    style={styles.listCardHeader}
+                    onPress={() => toggleExpand(listName)}
+                    activeOpacity={0.88}
+                  >
+                    <View style={styles.cardHeaderTop}>
+                      <View style={styles.cardHeaderLeft}>
+                        <View style={[styles.cardIconBadge, checkedCount === listItems.length && listItems.length > 0 && styles.badgeComplete]}>
+                          <Ionicons 
+                            name={checkedCount === listItems.length && listItems.length > 0 ? "checkmark-done" : "cart"} 
+                            size={18} 
+                            color={checkedCount === listItems.length && listItems.length > 0 ? Colors.white : Colors.primary} 
+                          />
+                        </View>
+
+                        <View style={styles.cardTitleBox}>
+                          <Text style={styles.cardTitleText} numberOfLines={1}>{listName}</Text>
+                          <Text style={styles.cardSubText}>
+                            {checkedCount} of {listItems.length} bought ({progressPct}%)
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Right Action Cluster */}
+                      <View style={styles.cardHeaderRight}>
+                        {/* 3 Vertical Dots Icon for List Actions */}
+                        <TouchableOpacity
+                          style={styles.threeDotsBtn}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            setActiveListMenu(listName);
+                          }}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                          <Ionicons name="ellipsis-vertical" size={20} color={Colors.text} />
+                        </TouchableOpacity>
+
+                        {/* Expand/Collapse Indicator */}
+                        <View style={styles.chevronBox}>
+                          <Ionicons 
+                            name={isExpanded ? 'chevron-up' : 'chevron-down'} 
+                            size={18} 
+                            color={Colors.textMuted} 
+                          />
+                        </View>
                       </View>
                     </View>
 
-                    <View style={styles.groupActions}>
-                      <TouchableOpacity 
-                        onPress={() => handleOpenQuickAdd(listName)} 
-                        style={styles.iconActionBtn}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="add" size={20} color={Colors.primary} />
-                      </TouchableOpacity>
-
-                      <TouchableOpacity 
-                        onPress={() => handleDeleteList(listName)} 
-                        style={styles.iconActionBtn}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                      </TouchableOpacity>
+                    {/* Progress Bar */}
+                    <View style={styles.progressBarTrack}>
+                      <View style={[styles.progressBarFill, { width: `${progressPct}%` }]} />
                     </View>
-                  </View>
-                  
-                  {/* List Item Cards */}
-                  {listItems.map((item) => (
-                    <View key={item.id} style={styles.groceryRow}>
-                      <TouchableOpacity
-                        style={styles.rowLeft}
-                        onPress={() => toggleItemChecked(item.id)}
+                  </TouchableOpacity>
+
+                  {/* Expandable Detail View */}
+                  {isExpanded && (
+                    <View style={styles.cardDetailsBody}>
+                      {listItems.map((item) => (
+                        <View key={item.id} style={styles.ingredientRow}>
+                          {/* Checkbox Tick Option */}
+                          <TouchableOpacity
+                            style={styles.ingLeft}
+                            onPress={() => toggleItemChecked(item.id)}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons 
+                              name={item.checked ? 'checkmark-circle' : 'ellipse-outline'} 
+                              size={22} 
+                              color={item.checked ? Colors.primary : Colors.textLight} 
+                            />
+                            <Text style={[styles.ingName, item.checked && styles.ingNameChecked]}>
+                              {item.name}
+                            </Text>
+                          </TouchableOpacity>
+
+                          {/* Item Quantity & 3 Vertical Dots Menu */}
+                          <View style={styles.ingRight}>
+                            <Text style={[styles.ingQtyText, item.checked && styles.ingQtyChecked]}>
+                              {item.quantity ? `${item.quantity} ${item.unit || ''}`.trim() : item.unit || ''}
+                            </Text>
+
+                            {/* 3 Vertical Dots Icon for Ingredient Actions */}
+                            <TouchableOpacity 
+                              style={styles.itemThreeDotsBtn}
+                              onPress={() => setActiveItemMenu(item)}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                              <Ionicons name="ellipsis-vertical" size={18} color={Colors.textMuted} />
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      ))}
+
+                      {/* Quick Add Button inside Card */}
+                      <TouchableOpacity 
+                        style={styles.addToListBar}
+                        onPress={() => handleOpenQuickAdd(listName)}
                         activeOpacity={0.8}
                       >
-                        <Ionicons 
-                          name={item.checked ? 'checkmark-circle' : 'ellipse-outline'} 
-                          size={22} 
-                          color={item.checked ? Colors.primary : Colors.textLight} 
-                        />
-                        <Ionicons 
-                          name="nutrition-outline" 
-                          size={16} 
-                          color={Colors.primary} 
-                          style={styles.itemIcon} 
-                        />
-                        <Text style={[styles.itemName, item.checked ? styles.itemNameChecked : null]}>
-                          {item.name}
-                        </Text>
+                        <Ionicons name="add" size={18} color={Colors.primary} />
+                        <Text style={styles.addToListBarText}>Add item to {listName}</Text>
                       </TouchableOpacity>
-
-                      <View style={styles.rowRight}>
-                        {/* Quantity display (Optional string/number or empty) */}
-                        <Text style={[styles.itemQty, item.checked ? styles.itemQtyChecked : null]}>
-                          {item.quantity ? `${item.quantity} ${item.unit || ''}`.trim() : item.unit || ''}
-                        </Text>
-
-                        {/* Edit Item Trigger */}
-                        <TouchableOpacity 
-                          onPress={() => handleOpenEditItem(item)}
-                          style={styles.itemActionBtn}
-                        >
-                          <Ionicons name="pencil-outline" size={16} color={Colors.textMuted} />
-                        </TouchableOpacity>
-
-                        {/* Delete Item Trigger */}
-                        <TouchableOpacity 
-                          onPress={() => removeItem(item.id)}
-                          style={styles.itemActionBtn}
-                        >
-                          <Ionicons name="close" size={18} color={Colors.textLight} />
-                        </TouchableOpacity>
-                      </View>
                     </View>
-                  ))}
+                  )}
                 </View>
               );
             })
@@ -277,8 +352,87 @@ export default function GroceryListScreen() {
           activeOpacity={0.88}
         >
           <Ionicons name="add" size={24} color={Colors.white} />
-          <Text style={styles.floatingAddBtnText}>Add</Text>
+          <Text style={styles.floatingAddBtnText}>Add List</Text>
         </TouchableOpacity>
+
+        {/* List Action Menu Modal (3 Vertical Dots) */}
+        <Modal
+          visible={activeListMenu !== null}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setActiveListMenu(null)}
+        >
+          <TouchableOpacity 
+            style={styles.modalBackdrop} 
+            activeOpacity={1} 
+            onPress={() => setActiveListMenu(null)}
+          >
+            <View style={styles.menuSheetCard}>
+              <Text style={styles.menuSheetTitle}>{activeListMenu}</Text>
+              
+              <TouchableOpacity 
+                style={styles.menuOptionRow} 
+                onPress={() => activeListMenu && handleOpenQuickAdd(activeListMenu)}
+              >
+                <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
+                <Text style={styles.menuOptionText}>Add New Item</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.menuOptionRow} 
+                onPress={() => activeListMenu && handleClearChecked(activeListMenu)}
+              >
+                <Ionicons name="checkmark-done-circle-outline" size={20} color={Colors.text} />
+                <Text style={styles.menuOptionText}>Clear Bought Items</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.menuOptionRow, { borderBottomWidth: 0 }]} 
+                onPress={() => activeListMenu && handleDeleteListConfirmed(activeListMenu)}
+              >
+                <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                <Text style={[styles.menuOptionText, { color: '#EF4444' }]}>Delete Grocery List</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* Item Action Menu Modal (3 Vertical Dots) */}
+        <Modal
+          visible={activeItemMenu !== null}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setActiveItemMenu(null)}
+        >
+          <TouchableOpacity 
+            style={styles.modalBackdrop} 
+            activeOpacity={1} 
+            onPress={() => setActiveItemMenu(null)}
+          >
+            <View style={styles.menuSheetCard}>
+              <Text style={styles.menuSheetTitle}>{activeItemMenu?.name}</Text>
+              
+              <TouchableOpacity 
+                style={styles.menuOptionRow} 
+                onPress={() => activeItemMenu && handleOpenEditItem(activeItemMenu)}
+              >
+                <Ionicons name="pencil-outline" size={20} color={Colors.primary} />
+                <Text style={styles.menuOptionText}>Edit Item Details</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.menuOptionRow, { borderBottomWidth: 0 }]} 
+                onPress={() => {
+                  if (activeItemMenu) removeItem(activeItemMenu.id);
+                  setActiveItemMenu(null);
+                }}
+              >
+                <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                <Text style={[styles.menuOptionText, { color: '#EF4444' }]}>Remove Item</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
 
         {/* Edit Item Modal */}
         <Modal
@@ -287,7 +441,7 @@ export default function GroceryListScreen() {
           animationType="slide"
           onRequestClose={() => setEditingItem(null)}
         >
-          <View style={styles.modalOverlay}>
+          <View style={styles.modalBackdrop}>
             <View style={styles.modalCard}>
               <View style={styles.modalHeaderRow}>
                 <Text style={styles.modalCardTitle}>Edit Item</Text>
@@ -347,10 +501,10 @@ export default function GroceryListScreen() {
           animationType="fade"
           onRequestClose={() => setQuickAddListName(null)}
         >
-          <View style={styles.modalOverlay}>
+          <View style={styles.modalBackdrop}>
             <View style={styles.modalCard}>
               <View style={styles.modalHeaderRow}>
-                <Text style={styles.modalCardTitle}>Add Item to "{quickAddListName}"</Text>
+                <Text style={styles.modalCardTitle}>Add to "{quickAddListName}"</Text>
                 <TouchableOpacity onPress={() => setQuickAddListName(null)}>
                   <Ionicons name="close" size={22} color={Colors.text} />
                 </TouchableOpacity>
@@ -437,7 +591,7 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 110, // Generous padding so floating button never covers content
+    paddingBottom: 110,
   },
   emptyWrapper: {
     alignItems: 'center',
@@ -475,111 +629,173 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.textMuted,
   },
-  recipeGroup: {
-    marginBottom: 22,
-  },
-  groupHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-    paddingHorizontal: 4,
-  },
-  groupHeaderTitleBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  recipeGroupHeader: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  countPill: {
-    backgroundColor: '#FAF3E0',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-  },
-  countPillText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.primary,
-  },
-  groupActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  iconActionBtn: {
-    padding: 6,
+
+  /* Horizontal Card Styles (Full Width with Margin) */
+  listCardContainer: {
+    width: '100%', // Full container width
     backgroundColor: Colors.white,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  groceryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.white,
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    marginBottom: 8,
+    borderRadius: 20,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: Colors.border,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 3,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+    overflow: 'hidden',
   },
-  rowLeft: {
+  listCardHeader: {
+    padding: 16,
+  },
+  cardHeaderTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  cardHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    paddingRight: 10,
+  },
+  cardIconBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#FAF3E0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  badgeComplete: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  cardTitleBox: {
+    flex: 1,
+  },
+  cardTitleText: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  cardSubText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: Colors.textMuted,
+  },
+  cardHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  threeDotsBtn: {
+    padding: 6,
+    borderRadius: 8,
+  },
+  chevronBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressBarTrack: {
+    height: 5,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 3,
+    overflow: 'hidden',
+    width: '100%',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: Colors.primary,
+    borderRadius: 3,
+  },
+
+  /* Expandable Details Body */
+  cardDetailsBody: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FAFAFA',
+  },
+  ingredientRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  ingLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
     paddingRight: 8,
   },
-  itemIcon: {
-    marginLeft: 10,
-    marginRight: 8,
-  },
-  itemName: {
+  ingName: {
     fontSize: 15,
     fontWeight: '600',
     color: Colors.text,
+    marginLeft: 10,
     flex: 1,
   },
-  itemNameChecked: {
+  ingNameChecked: {
     textDecorationLine: 'line-through',
     color: Colors.textLight,
   },
-  rowRight: {
+  ingRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  itemQty: {
+  ingQtyText: {
     fontSize: 14,
     fontWeight: '600',
     color: Colors.textMuted,
-    marginRight: 4,
   },
-  itemQtyChecked: {
+  ingQtyChecked: {
     color: Colors.textLight,
   },
-  itemActionBtn: {
+  itemThreeDotsBtn: {
     padding: 4,
+    marginLeft: 4,
   },
-  /* Floating Add Button positioned cleanly ABOVE bottom tab bar */
+  addToListBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    marginTop: 4,
+    borderRadius: 12,
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderStyle: 'dashed',
+  },
+  addToListBarText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.primary,
+    marginLeft: 4,
+  },
+
+  /* Floating Add Button */
   floatingAddBtn: {
     position: 'absolute',
-    bottom: 95, // High enough so tab bar and settings overlay NEVER hide it
+    bottom: 95,
     right: 20,
     zIndex: 999,
     flexDirection: 'row',
@@ -600,14 +816,46 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginLeft: 6,
   },
-  /* Modal Styles */
-  modalOverlay: {
+
+  /* Action Menu Sheet / Backdrop */
+  modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
   },
+  menuSheetCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: Colors.white,
+    borderRadius: 20,
+    padding: 16,
+    elevation: 8,
+  },
+  menuSheetTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: Colors.text,
+    marginBottom: 12,
+    paddingHorizontal: 8,
+  },
+  menuOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    gap: 12,
+  },
+  menuOptionText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+
+  /* Modal Form Card */
   modalCard: {
     width: '100%',
     backgroundColor: Colors.white,
