@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
-  Alert,
   LayoutAnimation,
   Platform,
   UIManager
@@ -17,6 +16,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useGroceryStore, GroceryItem } from '../../store/useGroceryStore';
+import { useAlertStore } from '../../store/useAlertStore';
+import BottomActionSheet, { ActionSheetOption } from '../../components/BottomActionSheet';
 import Colors from '../../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -35,19 +36,20 @@ export default function GroceryListScreen() {
     deleteList, 
     removeItem, 
     addItem, 
-    updateItem,
-    clearCheckedItems
+    updateItem 
   } = useGroceryStore();
   
+  const { showAlert } = useAlertStore();
+
   const [refreshing, setRefreshing] = useState(false);
 
   // Track expanded state of cards (by listName)
   const [expandedLists, setExpandedLists] = useState<Record<string, boolean>>({});
 
-  // List Action Menu Modal State
+  // List Action Sheet State
   const [activeListMenu, setActiveListMenu] = useState<string | null>(null);
 
-  // Item Action Menu Modal State
+  // Item Action Sheet State
   const [activeItemMenu, setActiveItemMenu] = useState<GroceryItem | null>(null);
 
   // Edit Item Modal State
@@ -100,24 +102,19 @@ export default function GroceryListScreen() {
   };
 
   const isListExpanded = (listName: string) => {
-    // By default, expanded if undefined
     return expandedLists[listName] !== false;
   };
 
   const handleDeleteListConfirmed = (listName: string) => {
     setActiveListMenu(null);
-    Alert.alert(
-      'Delete Grocery List',
-      `Are you sure you want to delete "${listName}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive', 
-          onPress: () => deleteList(listName) 
-        },
-      ]
-    );
+    showAlert({
+      title: 'Delete Grocery List',
+      message: `Are you sure you want to delete "${listName}"? This action cannot be undone.`,
+      type: 'danger',
+      confirmText: 'Delete List',
+      cancelText: 'Cancel',
+      onConfirm: () => deleteList(listName),
+    });
   };
 
   const handleClearChecked = (listName: string) => {
@@ -125,10 +122,23 @@ export default function GroceryListScreen() {
     const listItems = groupedItems[listName] || [];
     const checked = listItems.filter((i) => i.checked);
     if (checked.length === 0) {
-      Alert.alert('No Bought Items', 'There are no checked items to clear in this list.');
+      showAlert({
+        title: 'No Bought Items',
+        message: 'There are no checked items to clear in this list.',
+        type: 'info',
+        confirmText: 'OK',
+        cancelText: '',
+      });
       return;
     }
-    checked.forEach((item) => removeItem(item.id));
+    showAlert({
+      title: 'Clear Bought Items',
+      message: `Clear ${checked.length} bought item(s) from "${listName}"?`,
+      type: 'warning',
+      confirmText: 'Clear Items',
+      cancelText: 'Cancel',
+      onConfirm: () => checked.forEach((item) => removeItem(item.id)),
+    });
   };
 
   const handleOpenEditItem = (item: GroceryItem) => {
@@ -143,7 +153,13 @@ export default function GroceryListScreen() {
   const handleSaveEditItem = async () => {
     if (!editingItem) return;
     if (!editName.trim()) {
-      Alert.alert('Missing Name', 'Item name cannot be empty.');
+      showAlert({
+        title: 'Missing Name',
+        message: 'Item name cannot be empty.',
+        type: 'warning',
+        confirmText: 'OK',
+        cancelText: '',
+      });
       return;
     }
     await updateItem(editingItem.id, {
@@ -165,12 +181,65 @@ export default function GroceryListScreen() {
 
   const handleSaveQuickAdd = async () => {
     if (!quickAddListName || !quickName.trim()) {
-      Alert.alert('Missing Name', 'Item name cannot be empty.');
+      showAlert({
+        title: 'Missing Name',
+        message: 'Item name cannot be empty.',
+        type: 'warning',
+        confirmText: 'OK',
+        cancelText: '',
+      });
       return;
     }
     await addItem(quickName.trim(), quickQty.trim(), quickUnit.trim(), quickAddListName);
     setQuickAddListName(null);
   };
+
+  // Build List Action Sheet Options
+  const getListMenuOptions = (listName: string): ActionSheetOption[] => [
+    {
+      label: 'Add New Item',
+      icon: 'add-circle-outline',
+      iconColor: Colors.primary,
+      onPress: () => handleOpenQuickAdd(listName),
+    },
+    {
+      label: 'Clear Bought Items',
+      icon: 'checkmark-done-circle-outline',
+      iconColor: Colors.text,
+      onPress: () => handleClearChecked(listName),
+    },
+    {
+      label: 'Delete Grocery List',
+      icon: 'trash-outline',
+      isDestructive: true,
+      onPress: () => handleDeleteListConfirmed(listName),
+    },
+  ];
+
+  // Build Item Action Sheet Options
+  const getItemMenuOptions = (item: GroceryItem): ActionSheetOption[] => [
+    {
+      label: 'Edit Item Details',
+      icon: 'create-outline',
+      iconColor: Colors.primary,
+      onPress: () => handleOpenEditItem(item),
+    },
+    {
+      label: 'Remove Item',
+      icon: 'trash-outline',
+      isDestructive: true,
+      onPress: () => {
+        showAlert({
+          title: 'Remove Item',
+          message: `Remove "${item.name}" from grocery list?`,
+          type: 'danger',
+          confirmText: 'Remove',
+          cancelText: 'Cancel',
+          onConfirm: () => removeItem(item.id),
+        });
+      },
+    },
+  ];
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -258,9 +327,8 @@ export default function GroceryListScreen() {
                         </View>
                       </View>
 
-                      {/* Right Action Cluster */}
+                      {/* Right Action Cluster with 3 Vertical Dots */}
                       <View style={styles.cardHeaderRight}>
-                        {/* 3 Vertical Dots Icon for List Actions */}
                         <TouchableOpacity
                           style={styles.threeDotsBtn}
                           onPress={(e) => {
@@ -272,7 +340,6 @@ export default function GroceryListScreen() {
                           <Ionicons name="ellipsis-vertical" size={20} color={Colors.text} />
                         </TouchableOpacity>
 
-                        {/* Expand/Collapse Indicator */}
                         <View style={styles.chevronBox}>
                           <Ionicons 
                             name={isExpanded ? 'chevron-up' : 'chevron-down'} 
@@ -310,13 +377,12 @@ export default function GroceryListScreen() {
                             </Text>
                           </TouchableOpacity>
 
-                          {/* Item Quantity & 3 Vertical Dots Menu */}
+                          {/* Item Quantity & 3 Vertical Dots Button */}
                           <View style={styles.ingRight}>
                             <Text style={[styles.ingQtyText, item.checked && styles.ingQtyChecked]}>
                               {item.quantity ? `${item.quantity} ${item.unit || ''}`.trim() : item.unit || ''}
                             </Text>
 
-                            {/* 3 Vertical Dots Icon for Ingredient Actions */}
                             <TouchableOpacity 
                               style={styles.itemThreeDotsBtn}
                               onPress={() => setActiveItemMenu(item)}
@@ -355,84 +421,21 @@ export default function GroceryListScreen() {
           <Text style={styles.floatingAddBtnText}>Add List</Text>
         </TouchableOpacity>
 
-        {/* List Action Menu Modal (3 Vertical Dots) */}
-        <Modal
+        {/* Bottom-Up Action Dialogue for List (3 Vertical Dots) */}
+        <BottomActionSheet
           visible={activeListMenu !== null}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setActiveListMenu(null)}
-        >
-          <TouchableOpacity 
-            style={styles.modalBackdrop} 
-            activeOpacity={1} 
-            onPress={() => setActiveListMenu(null)}
-          >
-            <View style={styles.menuSheetCard}>
-              <Text style={styles.menuSheetTitle}>{activeListMenu}</Text>
-              
-              <TouchableOpacity 
-                style={styles.menuOptionRow} 
-                onPress={() => activeListMenu && handleOpenQuickAdd(activeListMenu)}
-              >
-                <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
-                <Text style={styles.menuOptionText}>Add New Item</Text>
-              </TouchableOpacity>
+          title={activeListMenu || ''}
+          options={activeListMenu ? getListMenuOptions(activeListMenu) : []}
+          onClose={() => setActiveListMenu(null)}
+        />
 
-              <TouchableOpacity 
-                style={styles.menuOptionRow} 
-                onPress={() => activeListMenu && handleClearChecked(activeListMenu)}
-              >
-                <Ionicons name="checkmark-done-circle-outline" size={20} color={Colors.text} />
-                <Text style={styles.menuOptionText}>Clear Bought Items</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[styles.menuOptionRow, { borderBottomWidth: 0 }]} 
-                onPress={() => activeListMenu && handleDeleteListConfirmed(activeListMenu)}
-              >
-                <Ionicons name="trash-outline" size={20} color="#EF4444" />
-                <Text style={[styles.menuOptionText, { color: '#EF4444' }]}>Delete Grocery List</Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </Modal>
-
-        {/* Item Action Menu Modal (3 Vertical Dots) */}
-        <Modal
+        {/* Bottom-Up Action Dialogue for Item (3 Vertical Dots) */}
+        <BottomActionSheet
           visible={activeItemMenu !== null}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setActiveItemMenu(null)}
-        >
-          <TouchableOpacity 
-            style={styles.modalBackdrop} 
-            activeOpacity={1} 
-            onPress={() => setActiveItemMenu(null)}
-          >
-            <View style={styles.menuSheetCard}>
-              <Text style={styles.menuSheetTitle}>{activeItemMenu?.name}</Text>
-              
-              <TouchableOpacity 
-                style={styles.menuOptionRow} 
-                onPress={() => activeItemMenu && handleOpenEditItem(activeItemMenu)}
-              >
-                <Ionicons name="pencil-outline" size={20} color={Colors.primary} />
-                <Text style={styles.menuOptionText}>Edit Item Details</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[styles.menuOptionRow, { borderBottomWidth: 0 }]} 
-                onPress={() => {
-                  if (activeItemMenu) removeItem(activeItemMenu.id);
-                  setActiveItemMenu(null);
-                }}
-              >
-                <Ionicons name="trash-outline" size={20} color="#EF4444" />
-                <Text style={[styles.menuOptionText, { color: '#EF4444' }]}>Remove Item</Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </Modal>
+          title={activeItemMenu?.name || ''}
+          options={activeItemMenu ? getItemMenuOptions(activeItemMenu) : []}
+          onClose={() => setActiveItemMenu(null)}
+        />
 
         {/* Edit Item Modal */}
         <Modal
@@ -630,9 +633,9 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
   },
 
-  /* Horizontal Card Styles (Full Width with Margin) */
+  /* Horizontal Card Styles */
   listCardContainer: {
-    width: '100%', // Full container width
+    width: '100%',
     backgroundColor: Colors.white,
     borderRadius: 20,
     marginBottom: 16,
@@ -817,45 +820,14 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
 
-  /* Action Menu Sheet / Backdrop */
+  /* Modal Form Card */
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
   },
-  menuSheetCard: {
-    width: '100%',
-    maxWidth: 340,
-    backgroundColor: Colors.white,
-    borderRadius: 20,
-    padding: 16,
-    elevation: 8,
-  },
-  menuSheetTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: Colors.text,
-    marginBottom: 12,
-    paddingHorizontal: 8,
-  },
-  menuOptionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    gap: 12,
-  },
-  menuOptionText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-
-  /* Modal Form Card */
   modalCard: {
     width: '100%',
     backgroundColor: Colors.white,

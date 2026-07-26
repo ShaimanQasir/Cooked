@@ -7,6 +7,7 @@ import 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useUserStore } from '@/store/useUserStore';
 import Toast from '@/components/Toast';
+import CustomAlertModal from '@/components/CustomAlertModal';
 
 export {
   ErrorBoundary,
@@ -125,6 +126,7 @@ function RootLayoutNav({ loaded }: { loaded: boolean }) {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Toast />
+      <CustomAlertModal />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
