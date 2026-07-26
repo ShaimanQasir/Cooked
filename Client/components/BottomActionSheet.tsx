@@ -50,7 +50,7 @@ export default function BottomActionSheet({
             </Text>
           ) : null}
 
-          {/* Action Rows */}
+          {/* Action Rows Container */}
           <View style={styles.actionList}>
             {options.map((opt, idx) => {
               const isLast = idx === options.length - 1;
@@ -96,9 +96,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 16, // Clean padding matching action card bottom
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.15,
@@ -111,21 +111,27 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
     borderRadius: 3,
     alignSelf: 'center',
-    marginBottom: 16,
+    marginBottom: 14,
   },
   sheetTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
     color: Colors.text,
     textAlign: 'center',
-    marginBottom: 18,
+    marginBottom: 14,
+    paddingHorizontal: 10,
   },
   actionList: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 18,
+    backgroundColor: Colors.white,
+    borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   actionRow: {
     flexDirection: 'row',
