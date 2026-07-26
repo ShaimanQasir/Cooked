@@ -50,7 +50,7 @@ export default function BottomActionSheet({
             </Text>
           ) : null}
 
-          {/* Action Rows Container */}
+          {/* Action List Card */}
           <View style={styles.actionList}>
             {options.map((opt, idx) => {
               const isLast = idx === options.length - 1;
@@ -67,7 +67,7 @@ export default function BottomActionSheet({
                     onClose();
                     opt.onPress();
                   }}
-                  activeOpacity={0.75}
+                  activeOpacity={0.7}
                 >
                   <View style={[styles.iconCircle, { backgroundColor: iconBg }]}>
                     <Ionicons name={opt.icon} size={20} color={defaultIconColor} />
@@ -80,6 +80,11 @@ export default function BottomActionSheet({
               );
             })}
           </View>
+
+          {/* Cancel button */}
+          <TouchableOpacity style={styles.cancelBtn} onPress={onClose} activeOpacity={0.8}>
+            <Text style={styles.cancelBtnText}>Cancel</Text>
+          </TouchableOpacity>
         </Pressable>
       </Pressable>
     </Modal>
@@ -89,7 +94,7 @@ export default function BottomActionSheet({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
     justifyContent: 'flex-end',
   },
   sheetContainer: {
@@ -98,23 +103,23 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 28,
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 20 : 16, // Clean padding matching action card bottom
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 20,
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 10,
   },
   handle: {
-    width: 42,
-    height: 5,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 3,
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.border,
     alignSelf: 'center',
-    marginBottom: 14,
+    marginBottom: 12,
   },
   sheetTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '800',
     color: Colors.text,
     textAlign: 'center',
@@ -124,23 +129,18 @@ const styles = StyleSheet.create({
   actionList: {
     backgroundColor: Colors.white,
     borderRadius: 20,
-    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+    marginBottom: 12,
   },
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 14,
     paddingHorizontal: 16,
-    backgroundColor: Colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: Colors.border,
   },
   actionRowLast: {
     borderBottomWidth: 0,
@@ -148,18 +148,32 @@ const styles = StyleSheet.create({
   iconCircle: {
     width: 38,
     height: 38,
-    borderRadius: 12,
-    alignItems: 'center',
+    borderRadius: 19,
     justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 14,
   },
   actionText: {
     flex: 1,
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
     color: Colors.text,
   },
   destructiveText: {
     color: '#EF4444',
+  },
+  cancelBtn: {
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: Colors.cardAlt,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cancelBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.textMuted,
   },
 });

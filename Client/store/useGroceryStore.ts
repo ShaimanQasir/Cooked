@@ -121,8 +121,18 @@ export const useGroceryStore = create<GroceryStore>()(
       },
 
       deleteList: async (listName: string) => {
-        const listItems = get().items.filter((i) => i.listName === listName);
-        set((state) => ({ items: state.items.filter((item) => item.listName !== listName) }));
+        const norm = (s?: string) => (s || '').trim().toLowerCase();
+        const targetNorm = norm(listName);
+
+        const listItems = get().items.filter(
+          (i) => norm(i.listName) === targetNorm || norm(i.recipeName) === targetNorm
+        );
+
+        set((state) => ({
+          items: state.items.filter(
+            (item) => norm(item.listName) !== targetNorm && norm(item.recipeName) !== targetNorm
+          ),
+        }));
 
         for (const item of listItems) {
           if (item.backendId) {

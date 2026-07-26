@@ -83,6 +83,7 @@ export default function ProfileTabScreen() {
   };
 
   const myRecipesCount = recipes.filter((r) => r.authorId === currentUserId).length;
+  const recentCount = recentlyViewedIds.filter((id) => recipes.some((r) => r.id === id)).length;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -140,7 +141,7 @@ export default function ProfileTabScreen() {
               onPress={() => router.push('/profile/recent')}
               activeOpacity={0.8}
             >
-              <Text style={styles.statShortcutVal}>{recentlyViewedIds.length}</Text>
+              <Text style={styles.statShortcutVal}>{recentCount}</Text>
               <Text style={styles.statShortcutKey}>Recent</Text>
             </TouchableOpacity>
           </View>
