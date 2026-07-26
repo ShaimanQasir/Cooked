@@ -67,7 +67,7 @@ export default function TypeIngredientScreen() {
           {ingredientName.length > 0 && (
             <View style={styles.suggestionBox}>
               <View style={styles.suggestionLeft}>
-                <Text style={styles.suggestionEmoji}>🧄</Text>
+                <Ionicons name="nutrition-outline" size={20} color={Colors.primary} style={{ marginRight: 10 }} />
                 <Text style={styles.suggestionText}>{ingredientName}</Text>
               </View>
               <Ionicons name="heart" size={20} color={Colors.primary} />

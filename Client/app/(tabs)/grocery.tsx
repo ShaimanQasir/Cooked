@@ -5,7 +5,6 @@ import {
   Text, 
   TouchableOpacity, 
   ScrollView, 
-  Platform,
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
@@ -32,22 +31,13 @@ export default function GroceryListScreen() {
 
   // Group items by recipe name
   const groupedItems = items.reduce<Record<string, GroceryItem[]>>((acc, item) => {
-    if (!acc[item.recipeName]) {
-      acc[item.recipeName] = [];
+    const key = item.recipeName || 'Custom Items';
+    if (!acc[key]) {
+      acc[key] = [];
     }
-    acc[item.recipeName].push(item);
+    acc[key].push(item);
     return acc;
   }, {});
-
-  const getIngredientEmoji = (name: string) => {
-    const lower = name.toLowerCase();
-    if (lower.includes('garlic')) return '🧄';
-    if (lower.includes('parsley')) return '🌿';
-    if (lower.includes('lemon')) return '🍋';
-    if (lower.includes('pasta') || lower.includes('fettuccine')) return '🍝';
-    if (lower.includes('salt')) return '🧂';
-    return '🥕';
-  };
 
   const handleAddGrocery = () => {
     router.push('/grocery/add-grocery-modal');
@@ -57,15 +47,15 @@ export default function GroceryListScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         
-        {/* Header Row */}
+        {/* Header Row - Pure Title, NO Back Arrow */}
         <View style={styles.headerRow}>
           <Text style={styles.headerTitle}>Grocery List</Text>
-          <TouchableOpacity style={styles.calendarBtn}>
+          <TouchableOpacity style={styles.calendarBtn} activeOpacity={0.7}>
             <Ionicons name="calendar-outline" size={24} color={Colors.text} />
           </TouchableOpacity>
         </View>
 
-        {/* Scroll List organized by recipe name (Page 43) */}
+        {/* Scroll List organized by recipe name */}
         <ScrollView
           style={styles.scrollList}
           contentContainerStyle={styles.listContent}
@@ -105,7 +95,7 @@ export default function GroceryListScreen() {
                         size={22} 
                         color={item.checked ? Colors.primary : Colors.textLight} 
                       />
-                      <Text style={styles.emoji}>{getIngredientEmoji(item.name)}</Text>
+                      <Ionicons name="nutrition-outline" size={16} color={Colors.primary} style={styles.itemIcon} />
                       <Text style={[styles.itemName, item.checked ? styles.itemNameChecked : null]}>
                         {item.name}
                       </Text>
@@ -120,7 +110,7 @@ export default function GroceryListScreen() {
           )}
         </ScrollView>
 
-        {/* Floating Add Button on bottom-right (Page 43) */}
+        {/* Floating Add Button on bottom-right */}
         <TouchableOpacity 
           style={styles.floatingAddBtn}
           onPress={handleAddGrocery}
@@ -150,11 +140,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    marginTop: 4,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '800',
     color: Colors.text,
   },
@@ -166,55 +155,54 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 100, // Room for floating button
+    paddingTop: 12,
+    paddingBottom: 90,
   },
   emptyWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 120,
+    paddingTop: 80,
   },
   emptyText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.textLight,
     marginTop: 12,
+    fontSize: 15,
+    color: Colors.textMuted,
   },
   recipeGroup: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   recipeGroupHeader: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
     color: Colors.text,
-    marginBottom: 12,
-    letterSpacing: -0.3,
+    marginBottom: 10,
   },
   groceryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    height: 56,
     backgroundColor: Colors.white,
-    borderRadius: 16,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: Colors.border,
-    paddingHorizontal: 16,
-    marginBottom: 10,
   },
   rowLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
-  emoji: {
-    fontSize: 18,
-    marginLeft: 12,
+  itemIcon: {
+    marginLeft: 10,
     marginRight: 8,
   },
   itemName: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '600',
     color: Colors.text,
+    flex: 1,
   },
   itemNameChecked: {
     textDecorationLine: 'line-through',
@@ -222,7 +210,7 @@ const styles = StyleSheet.create({
   },
   itemQty: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
     color: Colors.textMuted,
   },
   itemQtyChecked: {
@@ -232,13 +220,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 24,
     right: 20,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: Colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
+    backgroundColor: Colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 30,
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,

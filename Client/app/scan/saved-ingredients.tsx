@@ -41,18 +41,6 @@ export default function SavedIngredientsScreen() {
     new Set([...scannedIngredients, ...pantryItems.map((i) => i.name)])
   );
 
-  const getIngredientEmoji = (name: string) => {
-    const lower = name.toLowerCase();
-    if (lower.includes('garlic')) return '🧄';
-    if (lower.includes('parsley')) return '🌿';
-    if (lower.includes('pasta')) return '🍝';
-    if (lower.includes('tomato')) return '🍅';
-    if (lower.includes('butter')) return '🧈';
-    if (lower.includes('cheese')) return '🧀';
-    if (lower.includes('egg')) return '🥚';
-    return '🥕';
-  };
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -86,7 +74,7 @@ export default function SavedIngredientsScreen() {
               return (
                 <View key={name} style={styles.ingredientCard}>
                   <View style={styles.cardLeft}>
-                    <Text style={styles.emoji}>{getIngredientEmoji(name)}</Text>
+                    <Ionicons name="nutrition-outline" size={18} color={Colors.primary} style={{ marginRight: 10 }} />
                     <Text style={styles.cardText}>{name}</Text>
                   </View>
                   

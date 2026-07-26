@@ -142,33 +142,7 @@ export default function RecipeDetailsScreen() {
     });
   };
 
-  const getIngredientEmoji = (name: string) => {
-    const lower = name.toLowerCase();
-    if (lower.includes('pasta') || lower.includes('fettuccine')) return '🍝';
-    if (lower.includes('butter')) return '🧈';
-    if (lower.includes('cream')) return '🥛';
-    if (lower.includes('garlic')) return '🧄';
-    if (lower.includes('cheese') || lower.includes('parmesan')) return '🧀';
-    if (lower.includes('salt')) return '🧂';
-    if (lower.includes('pepper')) return '🫑';
-    if (lower.includes('water')) return '💧';
-    if (lower.includes('chicken')) return '🍗';
-    if (lower.includes('salmon')) return '🐟';
-    if (lower.includes('egg')) return '🥚';
-    if (lower.includes('onion')) return '🧅';
-    if (lower.includes('tomato')) return '🍅';
-    if (lower.includes('oil')) return '🫒';
-    if (lower.includes('rice')) return '🍚';
-    if (lower.includes('lemon')) return '🍋';
-    if (lower.includes('broccoli')) return '🥦';
-    if (lower.includes('carrot')) return '🥕';
-    if (lower.includes('soy')) return '🥢';
-    if (lower.includes('sesame')) return '🫘';
-    if (lower.includes('ginger')) return '🫚';
-    if (lower.includes('basil')) return '🌿';
-    if (lower.includes('parsley')) return '🌿';
-    return '🥕';
-  };
+
 
   const steps = recipe?.instructions
     ? recipe.instructions.split(/\n|\r/).filter((s) => s.trim().length > 0)
@@ -423,7 +397,7 @@ export default function RecipeDetailsScreen() {
               <View key={idx} style={styles.ingredientRow}>
                 <View style={styles.ingLeft}>
                   <View style={styles.ingAvatar}>
-                    <Text style={styles.ingEmoji}>{getIngredientEmoji(ing.name)}</Text>
+                    <Ionicons name="nutrition-outline" size={18} color={Colors.primary} />
                   </View>
                   <Text style={styles.ingName}>{ing.name}</Text>
                 </View>

@@ -41,17 +41,17 @@ export default function ScanCameraScreen() {
         {/* Mock Fridge Shelves with Colored Blocks representing ingredients */}
         <View style={styles.mockFridge}>
           <View style={styles.mockShelf}>
-            <View style={[styles.mockItem, { backgroundColor: '#FFD700', width: 60 }]}><Text style={styles.itemText}>🍋 Lemons</Text></View>
-            <View style={[styles.mockItem, { backgroundColor: '#FF4500', width: 70 }]}><Text style={styles.itemText}>🍅 Tomatoes</Text></View>
-            <View style={[styles.mockItem, { backgroundColor: '#FFE4C4', width: 50 }]}><Text style={styles.itemText}>🧄 Garlic</Text></View>
+            <View style={[styles.mockItem, { backgroundColor: '#FFD700', width: 60 }]}><Text style={styles.itemText}>Lemons</Text></View>
+            <View style={[styles.mockItem, { backgroundColor: '#FF4500', width: 70 }]}><Text style={styles.itemText}>Tomatoes</Text></View>
+            <View style={[styles.mockItem, { backgroundColor: '#FFE4C4', width: 50 }]}><Text style={styles.itemText}>Garlic</Text></View>
           </View>
           <View style={styles.mockShelf}>
-            <View style={[styles.mockItem, { backgroundColor: '#32CD32', width: 80 }]}><Text style={styles.itemText}>🥦 Broccoli</Text></View>
-            <View style={[styles.mockItem, { backgroundColor: '#FFA500', width: 60 }]}><Text style={styles.itemText}>🧀 Cheese</Text></View>
+            <View style={[styles.mockItem, { backgroundColor: '#32CD32', width: 80 }]}><Text style={styles.itemText}>Broccoli</Text></View>
+            <View style={[styles.mockItem, { backgroundColor: '#FFA500', width: 60 }]}><Text style={styles.itemText}>Cheese</Text></View>
           </View>
           <View style={styles.mockShelf}>
-            <View style={[styles.mockItem, { backgroundColor: '#F0E68C', width: 90 }]}><Text style={styles.itemText}>🍝 Pasta</Text></View>
-            <View style={[styles.mockItem, { backgroundColor: '#FFFDD0', width: 50 }]}><Text style={styles.itemText}>🥚 Eggs</Text></View>
+            <View style={[styles.mockItem, { backgroundColor: '#F0E68C', width: 90 }]}><Text style={styles.itemText}>Pasta</Text></View>
+            <View style={[styles.mockItem, { backgroundColor: '#FFFDD0', width: 50 }]}><Text style={styles.itemText}>Eggs</Text></View>
           </View>
         </View>
 
