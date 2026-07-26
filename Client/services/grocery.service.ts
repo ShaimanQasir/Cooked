@@ -4,8 +4,9 @@ export interface BackendGroceryItem {
   id: number;
   user: number;
   recipe: number | null;
+  list_name: string;
   name: string;
-  quantity: number | null;
+  quantity: string | number | null;
   unit: string;
   is_checked: boolean;
   created_at: string;
@@ -13,8 +14,9 @@ export interface BackendGroceryItem {
 }
 
 export interface CreateGroceryItemPayload {
+  list_name?: string;
   name: string;
-  quantity?: number;
+  quantity?: string | number;
   unit?: string;
   recipe?: number;
   is_checked?: boolean;

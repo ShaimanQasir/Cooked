@@ -16,12 +16,13 @@ class GroceryItem(models.Model):
         blank=True,
         related_name='grocery_items'
     )
+    list_name = models.CharField(max_length=200, default='Custom Items', blank=True)
     name = models.CharField(max_length=200, null=False, blank=False)
-    quantity = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    quantity = models.CharField(max_length=100, blank=True, null=True, default='')
     unit = models.CharField(max_length=50, blank=True)
     is_checked = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.name} ({self.quantity} {self.unit}) for {self.user.username}"
+        return f"{self.name} in {self.list_name} for {self.user.username}"

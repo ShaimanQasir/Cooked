@@ -121,18 +121,12 @@ export default function RecipeDetailsScreen() {
     router.push({ pathname: '/recipe/edit', params: { id: String(recipe?.id) } });
   };
 
-  const handleAddGrocery = () => {
+  const handleAddGrocery = async () => {
     if (!recipe) return;
     const store = useGroceryStore.getState();
-    let count = 0;
-    (recipe.ingredients || []).forEach((ing) => {
-      if (ing.name) {
-        store.addItem(ing.name, ing.quantity ? `${ing.quantity} ${ing.unit}`.trim() : '');
-        count++;
-      }
-    });
+    await store.addRecipeList(recipe.title, recipe.ingredients || []);
     setAddedGrocery(true);
-    show(`Added ${count} ingredients to Grocery List!`, 'success');
+    show(`Created grocery list '${recipe.title}' with ${recipe.ingredients?.length || 0} items!`, 'success');
   };
 
   const handleAddCookbook = () => {

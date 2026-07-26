@@ -5,7 +5,8 @@ import {
   Text, 
   TouchableOpacity, 
   TextInput, 
-  Platform 
+  ScrollView,
+  Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -17,29 +18,28 @@ import { Ionicons } from '@expo/vector-icons';
 interface TempTag {
   name: string;
   qty: string;
+  unit: string;
 }
 
 export default function AddGroceryModal() {
   const router = useRouter();
   const { addItem } = useGroceryStore();
 
-  const [recipeSelection, setRecipeSelection] = useState('');
+  const [listName, setListName] = useState('Custom Items');
   const [ingName, setIngName] = useState('');
   const [ingQty, setIngQty] = useState('');
+  const [ingUnit, setIngUnit] = useState('');
   
-  const [addedTags, setAddedTags] = useState<TempTag[]>([
-    { name: 'Tomatoes', qty: '150 oz' },
-    { name: 'Cheese', qty: '125 oz' }
-  ]); // Pre-populated tags matching Page 44 screenshot
+  const [addedTags, setAddedTags] = useState<TempTag[]>([]);
 
   const handleAddTag = () => {
     const name = ingName.trim();
-    const qty = ingQty.trim();
-    if (!name || !qty) return;
+    if (!name) return;
     
-    setAddedTags([...addedTags, { name, qty }]);
+    setAddedTags([...addedTags, { name, qty: ingQty.trim(), unit: ingUnit.trim() }]);
     setIngName('');
     setIngQty('');
+    setIngUnit('');
   };
 
   const handleRemoveTag = (index: number) => {
@@ -47,14 +47,22 @@ export default function AddGroceryModal() {
   };
 
   const handleSave = () => {
-    // Add all compiled tags to the grocery store
+    const activeName = ingName.trim();
+    const finalListName = listName.trim() || 'Custom Items';
+
+    if (addedTags.length === 0 && !activeName) {
+      Alert.alert('Missing Item', 'Please enter at least one item name.');
+      return;
+    }
+
+    // Add queued tags
     addedTags.forEach((tag) => {
-      addItem(tag.name, tag.qty, recipeSelection || 'Custom');
+      addItem(tag.name, tag.qty, tag.unit, finalListName);
     });
     
-    // Add active fields if not empty
-    if (ingName.trim() && ingQty.trim()) {
-      addItem(ingName.trim(), ingQty.trim(), recipeSelection || 'Custom');
+    // Add current active inputs if not empty
+    if (activeName) {
+      addItem(activeName, ingQty.trim(), ingUnit.trim(), finalListName);
     }
     
     router.back();
@@ -67,70 +75,75 @@ export default function AddGroceryModal() {
           
           {/* Header Row */}
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Add Grocery</Text>
+            <Text style={styles.modalTitle}>Create Grocery List</Text>
             <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
-              <Ionicons name="close" size={24} color={Colors.white} />
+              <Ionicons name="close" size={24} color={Colors.text} />
             </TouchableOpacity>
           </View>
 
-          {/* Recipe Dropdown Field */}
-          <Text style={styles.inputLabel}>Recipe</Text>
-          <TouchableOpacity style={styles.dropdownTrigger} activeOpacity={0.8}>
-            <Text style={styles.dropdownText}>
-              {recipeSelection ? recipeSelection : 'Choose a recipe'}
-            </Text>
-            <Ionicons name="chevron-down" size={20} color={Colors.textMuted} />
-          </TouchableOpacity>
-
-          {/* Ingredient Details Input row (Page 44) */}
-          <Text style={styles.inputLabel}>Recipe</Text>
-          <View style={styles.detailsRow}>
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+            {/* List Name Field */}
+            <Text style={styles.inputLabel}>List Name</Text>
             <TextInput
-              style={styles.nameInput}
-              placeholder="Cheese"
+              style={styles.textInput}
+              placeholder="e.g. Weekly Groceries"
               placeholderTextColor={Colors.textLight}
-              value={ingName}
-              onChangeText={setIngName}
+              value={listName}
+              onChangeText={setListName}
             />
-            <TextInput
-              style={styles.qtyInput}
-              placeholder="250 kg"
-              placeholderTextColor={Colors.textLight}
-              value={ingQty}
-              onChangeText={setIngQty}
-            />
-            
-            {/* Plus add trigger */}
-            <TouchableOpacity 
-              style={styles.plusBtn}
-              onPress={handleAddTag}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="add" size={24} color={Colors.primary} />
-            </TouchableOpacity>
-          </View>
 
-          {/* Ingredient Tags Display List */}
-          {addedTags.length > 0 && (
-            <View style={styles.tagsContainer}>
-              {addedTags.map((tag, idx) => (
-                <View key={idx} style={styles.tagChip}>
-                  <Text style={styles.tagText}>{tag.name} {tag.qty}</Text>
-                  <TouchableOpacity onPress={() => handleRemoveTag(idx)}>
-                    <Ionicons name="close-circle" size={16} color="#B27A1C" style={styles.closeIcon} />
-                  </TouchableOpacity>
-                </View>
-              ))}
+            {/* Ingredient Details Input row */}
+            <Text style={styles.inputLabel}>Add Items</Text>
+            <View style={styles.detailsRow}>
+              <TextInput
+                style={styles.nameInput}
+                placeholder="Item (e.g. Cheese)"
+                placeholderTextColor={Colors.textLight}
+                value={ingName}
+                onChangeText={setIngName}
+              />
+              <TextInput
+                style={styles.qtyInput}
+                placeholder="Qty (Optional)"
+                placeholderTextColor={Colors.textLight}
+                value={ingQty}
+                onChangeText={setIngQty}
+              />
+              <TextInput
+                style={styles.unitInput}
+                placeholder="Unit"
+                placeholderTextColor={Colors.textLight}
+                value={ingUnit}
+                onChangeText={setIngUnit}
+              />
+              <TouchableOpacity style={styles.addTagBtn} onPress={handleAddTag} activeOpacity={0.8}>
+                <Ionicons name="add" size={20} color={Colors.white} />
+              </TouchableOpacity>
             </View>
-          )}
 
-          {/* Save Button */}
+            {/* Compiled Item Chips */}
+            {addedTags.length > 0 && (
+              <View style={styles.tagsContainer}>
+                {addedTags.map((tag, idx) => (
+                  <View key={idx} style={styles.tagChip}>
+                    <Text style={styles.tagChipText}>
+                      {tag.name} {tag.qty ? `(${tag.qty} ${tag.unit})` : ''}
+                    </Text>
+                    <TouchableOpacity onPress={() => handleRemoveTag(idx)} style={{ marginLeft: 6 }}>
+                      <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+          </ScrollView>
+
+          {/* Action Button */}
           <Button
-            title="Save"
+            title="Save Grocery List"
             onPress={handleSave}
             style={styles.saveBtn}
           />
-
         </View>
       </View>
     </SafeAreaView>
@@ -141,118 +154,120 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
   },
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: Colors.primary, // Red modal backing matching Page 44 screenshot
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    padding: 24,
-    paddingBottom: Platform.OS === 'ios' ? 44 : 24,
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 30,
+    maxHeight: '85%',
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   modalTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: Colors.white,
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.text,
   },
   closeBtn: {
     padding: 4,
   },
   inputLabel: {
     fontSize: 14,
-    color: Colors.white,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  dropdownTrigger: {
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: Colors.white,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  dropdownText: {
-    fontSize: 15,
     fontWeight: '600',
-    color: Colors.textLight,
+    color: Colors.text,
+    marginBottom: 8,
+    marginTop: 12,
+  },
+  textInput: {
+    backgroundColor: Colors.background,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: Colors.text,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   detailsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginBottom: 16,
+    gap: 8,
   },
   nameInput: {
     flex: 2,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: Colors.white,
-    paddingHorizontal: 16,
-    fontSize: 15,
-    fontWeight: '600',
+    backgroundColor: Colors.background,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
     color: Colors.text,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   qtyInput: {
     flex: 1.2,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: Colors.white,
-    paddingHorizontal: 16,
-    fontSize: 15,
-    fontWeight: '600',
+    backgroundColor: Colors.background,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    fontSize: 14,
     color: Colors.text,
-    marginLeft: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  plusBtn: {
-    width: 44,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: Colors.white,
-    justifyContent: 'center',
+  unitInput: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: Colors.text,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  addTagBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    width: 40,
+    height: 40,
     alignItems: 'center',
-    marginLeft: 12,
+    justifyContent: 'center',
   },
   tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 20,
+    gap: 8,
+    marginTop: 16,
   },
   tagChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF6D9', // Soft yellow pill
-    borderWidth: 1,
-    borderColor: '#EBD17F',
+    backgroundColor: Colors.cardAlt,
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    marginRight: 8,
-    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  tagText: {
-    color: '#8A5D11',
-    fontWeight: '700',
+  tagChipText: {
     fontSize: 13,
-  },
-  closeIcon: {
-    marginLeft: 6,
+    color: Colors.text,
+    fontWeight: '600',
   },
   saveBtn: {
-    backgroundColor: Colors.text,
-    borderColor: Colors.text,
-    marginTop: 8,
+    marginTop: 20,
   },
 });

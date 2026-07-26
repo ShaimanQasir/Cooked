@@ -14,6 +14,7 @@ class GroceryItemSerializer(serializers.ModelSerializer):
             'user',
             'recipe',
             'recipe_details',
+            'list_name',
             'name',
             'quantity',
             'unit',

@@ -4,10 +4,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { groceryService, BackendGroceryItem } from '../services/grocery.service';
 
 export interface GroceryItem {
-  id: string; // number or string representation for store
+  id: string; // string ID for store
   backendId?: number;
+  listName: string; // e.g. "Lemon Grilled Salmon" or "My Custom List"
   name: string;
-  quantity: string;
+  quantity: string; // e.g. "250", "2", or ""
+  unit: string; // e.g. "g", "ml", "tbsp"
   recipeName: string;
   checked: boolean;
 }
@@ -18,8 +20,10 @@ interface GroceryStore {
   
   // Actions
   fetchGroceryItems: () => Promise<void>;
-  addItem: (name: string, quantity: string, recipeName?: string) => Promise<void>;
-  addRecipeIngredients: (recipeName: string, ingredients: { name: string; amount: string }[]) => Promise<void>;
+  addItem: (name: string, quantity?: string, unit?: string, listName?: string) => Promise<void>;
+  addRecipeList: (recipeTitle: string, ingredients: { name: string; quantity: string | number; unit: string }[]) => Promise<void>;
+  updateItem: (id: string, updates: { name?: string; quantity?: string; unit?: string; listName?: string }) => Promise<void>;
+  deleteList: (listName: string) => Promise<void>;
   removeItem: (id: string) => Promise<void>;
   toggleItemChecked: (id: string) => Promise<void>;
   clearCheckedItems: () => Promise<void>;
@@ -27,12 +31,16 @@ interface GroceryStore {
 }
 
 function mapBackendGroceryItem(item: BackendGroceryItem): GroceryItem {
+  const qtyStr = item.quantity != null ? String(item.quantity) : '';
+  const listNameVal = item.list_name || (item.recipe ? 'Recipe List' : 'Custom Items');
   return {
     id: String(item.id),
     backendId: item.id,
+    listName: listNameVal,
+    recipeName: listNameVal,
     name: item.name,
-    quantity: item.quantity ? `${item.quantity} ${item.unit}`.trim() : item.unit || '',
-    recipeName: item.recipe ? 'Recipe Item' : 'Custom',
+    quantity: qtyStr,
+    unit: item.unit || '',
     checked: item.is_checked,
   };
 }
@@ -57,17 +65,25 @@ export const useGroceryStore = create<GroceryStore>()(
         }
       },
 
-      addItem: async (name, quantity, recipeName = 'Custom') => {
+      addItem: async (name: string, quantity = '', unit = '', listName = 'Custom Items') => {
         const tempId = 'gi_' + Date.now() + Math.random().toString(36).substr(2, 5);
-        const newItem: GroceryItem = { id: tempId, name, quantity, recipeName, checked: false };
+        const newItem: GroceryItem = {
+          id: tempId,
+          listName,
+          recipeName: listName,
+          name,
+          quantity,
+          unit,
+          checked: false,
+        };
         set((state) => ({ items: [...state.items, newItem] }));
 
         try {
-          const parsedQty = parseFloat(quantity) || undefined;
           const backendItem = await groceryService.createGroceryItem({
+            list_name: listName,
             name,
-            quantity: parsedQty,
-            unit: isNaN(Number(quantity)) ? quantity : undefined,
+            quantity,
+            unit,
           });
           set((state) => ({
             items: state.items.map((i) => (i.id === tempId ? mapBackendGroceryItem(backendItem) : i)),
@@ -75,9 +91,45 @@ export const useGroceryStore = create<GroceryStore>()(
         } catch (_) {}
       },
 
-      addRecipeIngredients: async (recipeName, ingredients) => {
+      addRecipeList: async (recipeTitle: string, ingredients: { name: string; quantity: string | number; unit: string }[]) => {
         for (const ing of ingredients) {
-          await get().addItem(ing.name, ing.amount, recipeName);
+          const qtyStr = ing.quantity != null ? String(ing.quantity) : '';
+          await get().addItem(ing.name, qtyStr, ing.unit || '', recipeTitle);
+        }
+      },
+
+      updateItem: async (id: string, updates: { name?: string; quantity?: string; unit?: string; listName?: string }) => {
+        const target = get().items.find((i) => i.id === id);
+        if (!target) return;
+
+        set((state) => ({
+          items: state.items.map((item) =>
+            item.id === id ? { ...item, ...updates } : item
+          ),
+        }));
+
+        if (target.backendId) {
+          try {
+            await groceryService.updateGroceryItem(target.backendId, {
+              list_name: updates.listName !== undefined ? updates.listName : target.listName,
+              name: updates.name !== undefined ? updates.name : target.name,
+              quantity: updates.quantity !== undefined ? updates.quantity : target.quantity,
+              unit: updates.unit !== undefined ? updates.unit : target.unit,
+            });
+          } catch (_) {}
+        }
+      },
+
+      deleteList: async (listName: string) => {
+        const listItems = get().items.filter((i) => i.listName === listName);
+        set((state) => ({ items: state.items.filter((item) => item.listName !== listName) }));
+
+        for (const item of listItems) {
+          if (item.backendId) {
+            try {
+              await groceryService.deleteGroceryItem(item.backendId);
+            } catch (_) {}
+          }
         }
       },
 
