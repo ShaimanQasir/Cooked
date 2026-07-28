@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authService } from '../services/auth.service';
 import { userService, BackendUserProfile, BackendUser } from '../services/user.service';
-import { clearAuthTokens, ApiError } from '../services/api';
+import { clearAuthTokens, initAuthTokens, ApiError } from '../services/api';
 
 export interface UserProfile {
   name: string;
@@ -145,6 +145,7 @@ export const useUserStore = create<UserStore>()(
 
       checkAuth: async () => {
         try {
+          await initAuthTokens();
           const user: BackendUser = await authService.getCurrentUser();
           set({
             isAuthenticated: true,
