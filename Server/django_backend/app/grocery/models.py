@@ -26,3 +26,13 @@ class GroceryItem(models.Model):
 
     def __str__(self):
         return f"{self.name} in {self.list_name} for {self.user.username}"
+
+# --- Redis Cache Invalidation Signals ---
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
+from utils.cache_service import invalidate_grocery_caches
+
+@receiver([post_save, post_delete], sender=GroceryItem)
+def clear_grocery_cache_on_change(sender, instance, **kwargs):
+    invalidate_grocery_caches(user_id=instance.user_id if instance else None)
+

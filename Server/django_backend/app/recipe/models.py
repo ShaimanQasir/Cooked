@@ -91,6 +91,24 @@ class RecipeRating(models.Model):
         return f"{self.rating} stars for {self.recipe.title}"
 
 # --- Centralized Cloudinary Auto Cleanup Signal Binding ---
-# Uses utils.cloudinary_service for pre_save update and post_delete cleanup
 from utils.cloudinary_service import register_cloudinary_signals
 register_cloudinary_signals(Recipe, 'image')
+
+# --- Redis Cache Invalidation Signals ---
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
+from utils.cache_service import invalidate_recipe_caches
+
+@receiver([post_save, post_delete], sender=Recipe)
+def clear_recipe_cache_on_change(sender, instance, **kwargs):
+    invalidate_recipe_caches()
+
+@receiver([post_save, post_delete], sender=SavedRecipe)
+def clear_saved_recipe_cache_on_change(sender, instance, **kwargs):
+    invalidate_recipe_caches()
+
+@receiver([post_save, post_delete], sender=RecipeRating)
+def clear_recipe_rating_cache_on_change(sender, instance, **kwargs):
+    invalidate_recipe_caches()
+
+

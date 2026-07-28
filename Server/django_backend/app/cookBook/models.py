@@ -40,3 +40,17 @@ class CookBookRecipes(models.Model):
     
     class Meta:
         unique_together = ('cookbook', 'recipe')
+
+# --- Redis Cache Invalidation Signals ---
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
+from utils.cache_service import invalidate_cookbook_caches
+
+@receiver([post_save, post_delete], sender=CookBook)
+def clear_cookbook_cache_on_change(sender, instance, **kwargs):
+    invalidate_cookbook_caches()
+
+@receiver([post_save, post_delete], sender=CookBookRecipes)
+def clear_cookbook_recipes_cache_on_change(sender, instance, **kwargs):
+    invalidate_cookbook_caches()
+

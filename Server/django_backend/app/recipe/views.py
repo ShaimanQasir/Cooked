@@ -10,6 +10,8 @@ from .serializers import (
 from .permissions import IsAuthorOrReadOnly
 
 
+from utils.cache_service import get_or_set_cache
+
 # --- RECIPE VIEWS ---
 class RecipeListCreateView(APIView):
     """View for listing and creating recipes with optional image and video link."""
@@ -18,19 +20,26 @@ class RecipeListCreateView(APIView):
     throttle_scope = 'recipe'
 
     def get(self, request):
-        if request.user.is_authenticated:
-            from django.db.models import Q
-            recipes = Recipe.objects.filter(Q(is_public=True) | Q(author=request.user)).order_by('-created_at')
-        else:
-            recipes = Recipe.objects.filter(is_public=True).order_by('-created_at')
-        serializer = RecipeSerializer(recipes, many=True, context={'request': request})
-        data = serializer.data
-        return Response({
-            'count': len(data),
-            'next': None,
-            'previous': None,
-            'results': data,
-        })
+        user_id = request.user.id if request.user.is_authenticated else 'anon'
+        cache_key = f"recipes_list_{user_id}"
+
+        def fetch_recipes():
+            if request.user.is_authenticated:
+                from django.db.models import Q
+                recipes = Recipe.objects.filter(Q(is_public=True) | Q(author=request.user)).order_by('-created_at')
+            else:
+                recipes = Recipe.objects.filter(is_public=True).order_by('-created_at')
+            serializer = RecipeSerializer(recipes, many=True, context={'request': request})
+            data = serializer.data
+            return {
+                'count': len(data),
+                'next': None,
+                'previous': None,
+                'results': data,
+            }
+
+        resp_data = get_or_set_cache(cache_key, fetch_recipes, timeout=300)
+        return Response(resp_data, status=status.HTTP_200_OK)
 
     def post(self, request):
         serializer = RecipeSerializer(data=request.data, context={'request': request})
