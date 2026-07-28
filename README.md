@@ -6,9 +6,10 @@ Welcome to **Cooked**, a state-of-the-art, AI-driven platform designed to revolu
 
 ## 🌟 Key Features
 
-### ⚡ Production Caching & Performance Architecture
-- **Redis Caching Layer (`django-redis`):** High-speed response caching for recipe listings, popular feeds, and user collections via `get_or_set_cache()` parameterized helpers.
-- **Automatic Signal-Based Cache Invalidation:** Real-time cache purging on **CREATE, UPDATE, and DELETE** via `post_save` and `post_delete` signals on `Recipe`, `SavedRecipe`, `RecipeRating`, `CookBook`, `CookBookRecipes`, and `GroceryItem` models.
+### ⚡ Performance & Cache Architecture
+- **Lightweight Local Development (`DummyCache`):** Configured with Django's `DummyCache` by default for maximum local development performance. Zero Redis or Docker container background overhead, allowing the Expo React Native client, Android Emulator, and Django server to run smoothly simultaneously on low-resource machines.
+- **Production Redis Ready (`django-redis`):** Seamlessly supports `django-redis` via `REDIS_URL` in `.env` for high-throughput production environments.
+- **Signal-Based Cache Invalidation:** Signal hooks on `Recipe`, `SavedRecipe`, `RecipeRating`, `CookBook`, `CookBookRecipes`, and `GroceryItem` models ensure cache keys are cleared upon **CREATE, UPDATE, or DELETE** operations.
 
 ### 🔐 Enterprise Security & Token Lifecycle
 - **Hardware-Encrypted Storage:** JWT authentication tokens stored securely inside iOS Keychain and Android Keystore using **Expo `SecureStore`** (`expo-secure-store`).

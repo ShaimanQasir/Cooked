@@ -72,7 +72,7 @@ export const Button: React.FC<ButtonProps> = ({
         onPress={onPress}
         activeOpacity={0.8}
         disabled={isButtonDisabled}
-        style={[styles.button, { paddingHorizontal: 0, borderHeight: 0 }, style]}
+        style={[styles.button, { paddingHorizontal: 0, borderWidth: 0 }, style]}
       >
         <LinearGradient
           colors={['#E85B50', '#C63A2F']}
