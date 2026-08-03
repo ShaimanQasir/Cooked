@@ -21,6 +21,8 @@ export default function RegisterScreen() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
+  //temp
+
   const handleRegister = async () => {
     const newErrors: Record<string, string> = {};
     if (!name.trim()) newErrors.name = 'Full Name is required';
